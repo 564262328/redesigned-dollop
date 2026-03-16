@@ -36,4 +36,3 @@ jobs:
 
       - name: Report Summary
         run: cat report.md >> $GITHUB_STEP_SUMMARY
-
