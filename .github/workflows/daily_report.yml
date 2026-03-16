@@ -1,31 +1,27 @@
-name: Industrial A-Share Web Dashboard
+name: Industrial A-Share Analysis
 
 on:
   schedule:
-    - cron: '25 1 * * 1-5'
+    - cron: '25 1 * * 1-5' # 北京时间 09:25
   workflow_dispatch:
 
-# 必须开启 Pages 部署权限
+# 必须开启权限以支持免费 Issue 报告页面
 permissions:
+  issues: write
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
-  analyze_and_deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-22.04
+  analyze_job:
+    runs-on: ubuntu-22.04 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Setup Node & Python
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -33,22 +29,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxslt-dev
           python -m pip install --upgrade pip setuptools wheel
           pip install akshare>=1.18.40 pandas requests tenacity lxml html5lib py_mini_racer cryptography
 
-      - name: Generate Web Dashboard
+      - name: Run Quant Engine
         env:
-          SCKEY: ${{ secrets.SCKEY }} # 仍保留推送功能
+          # 自动注入 GitHub 令牌，无需手动在 Secrets 中配置
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCKEY: ${{ secrets.SCKEY }}
         run: python market_analysis.py
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      - name: Report Summary
+        run: cat report.md >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.' # 上传包含 index.html 的当前目录
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
