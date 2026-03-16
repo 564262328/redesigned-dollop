@@ -1,10 +1,12 @@
+import os
 import sys
 import time
 import random
+import requests
 import traceback
 from datetime import datetime
 
-# --- 依赖项自检 ---
+# --- 核心依赖预检 ---
 try:
     import akshare as ak
     import pandas as pd
@@ -12,107 +14,110 @@ except ImportError:
     print("❌ 环境异常，请确认 GitHub Actions 依赖安装步骤。")
     sys.exit(1)
 
+def send_notification(content):
+    """多渠道主动推送逻辑"""
+    # 1. Telegram 推送
+    tg_token = os.getenv("TELEGRAM_TOKEN")
+    tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if tg_token and tg_chat_id:
+        url = f"https://api.telegram.org{tg_token}/sendMessage"
+        requests.post(url, data={"chat_id": tg_chat_id, "text": content, "parse_mode": "Markdown"})
+
+    # 2. 钉钉推送
+    dd_token = os.getenv("DINGTALK_ACCESS_TOKEN")
+    if dd_token:
+        url = f"https://oapi.dingtalk.com{dd_token}"
+        data = {"msgtype": "markdown", "markdown": {"title": "A股开盘早报", "text": content}}
+        requests.post(url, json=data)
+
+    # 3. Server酱 (微信推送)
+    sckey = os.getenv("SCKEY")
+    if sckey:
+        url = f"https://sctapi.ftqq.com{sckey}.send"
+        requests.post(url, data={"title": "A股开盘早报", "desp": content})
+
 def fetch_a_share_spot():
-    """三级容错获取全 A 股行情数据。"""
-    # 方案 1: 东方财富 (标准)
+    """三级行情源冗余机制"""
+    # 1. 东财接口
     try:
-        print("Step 1: 尝试从东方财富获取行情...")
         df = ak.stock_zh_a_spot_em()
         if df is not None and not df.empty:
             return df, "东方财富"
-    except Exception as e:
-        print(f"东财接口异常: {e}")
-
-    time.sleep(random.uniform(1, 2))
-
-    # 方案 2: 新浪财经 (备份) - 接口名为 stock_zh_a_spot
+    except: pass
+    
+    # 2. 新浪接口 (备份)
     try:
-        print("Step 2: 尝试从新浪财经获取行情...")
-        df = ak.stock_zh_a_spot() # 注意：不是 stock_zh_a_spot_sina
+        df = ak.stock_zh_a_spot()
         if df is not None and not df.empty:
-            # 统一字段名以适配后续分析逻辑
-            df = df.rename(columns={'trade': '最新价', 'pricechange': '涨跌额', 'changepercent': '涨跌幅'})
+            df = df.rename(columns={'trade': '最新价', 'changepercent': '涨跌幅'})
             return df, "新浪财经"
-    except Exception as e:
-        print(f"新浪接口异常: {e}")
+    except: pass
 
-    time.sleep(random.uniform(1, 2))
-
-    # 方案 3: 分交易所抓取 (最后的防线)
+    # 3. 腾讯接口 (备选)
     try:
-        print("Step 3: 尝试分交易所获取行情...")
-        sh = ak.stock_sh_a_spot_em()
-        sz = ak.stock_sz_a_spot_em()
-        bj = ak.stock_bj_a_spot_em()
-        df = pd.concat([sh, sz, bj], ignore_index=True)
-        if not df.empty:
-            return df, "分交易所合并"
-    except Exception as e:
-        print(f"分交易所接口异常: {e}")
-
+        df = ak.stock_zh_a_spot_qq()
+        if df is not None and not df.empty:
+            return df, "腾讯财经"
+    except: pass
     return None, None
 
-def fetch_indices():
-    """双源获取核心指数。"""
+def fetch_latest_news():
+    """获取金十实时快讯"""
     try:
-        # 方案 1: 东财
-        df = ak.stock_zh_index_spot_em()
-        if df is not None and not df.empty:
-            return df, "东财"
+        df = ak.js_news(endpoint="main") # 获取主流快讯
+        news_list = df.head(5)[['datetime', 'content']].values.tolist()
+        return news_list
     except:
-        pass
-    
-    try:
-        # 方案 2: 新浪
-        df = ak.stock_zh_index_spot()
-        if df is not None and not df.empty:
-            return df.rename(columns={'last': '最新价', 'pct_chg': '涨跌幅'}), "新浪"
-    except:
-        return None, None
+        return [["-", "无法获取实时新闻，请检查接口"]]
 
-def run():
-    print(f"🚀 开始执行 A股早报分析 (当前时间: {datetime.now()})")
-    
-    df_spot, source_spot = fetch_a_share_spot()
-    df_index, source_index = fetch_indices()
-    
-    if df_spot is None:
-        print("❌ 所有行情接口均失效，请检查网络或 AKShare 版本。")
-        sys.exit(1)
-
-    # 计算情绪温度
-    total = len(df_spot)
+def calculate_dashboard(df_spot, df_index):
+    """AI 决策仪表盘逻辑"""
     up = len(df_spot[df_spot['涨跌幅'] > 0])
     down = len(df_spot[df_spot['涨跌幅'] < 0])
-    temp = round((up / total) * 100, 2) if total > 0 else 50.0
+    ratio = round((up / len(df_spot)) * 100, 2)
+    
+    # 简单的 AI 评分模型 (0-100)
+    score = ratio * 0.6 + 40 # 基础分
+    if ratio > 60: status, color = "极度乐观", "🚀"
+    elif ratio < 40: status, color = "情绪低迷", "⚠️"
+    else: status, color = "中性震荡", "⚖️"
+    
+    return score, status, color, up, down
 
+def run():
+    print(f"🚀 系统启动: {datetime.now()}")
+    df_spot, source = fetch_a_share_spot()
+    news = fetch_latest_news()
+    
+    if df_spot is None:
+        sys.exit(1)
+
+    df_index = ak.stock_zh_index_spot_em()
+    score, status, color, up, down = calculate_dashboard(df_spot, df_index)
+    
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    report = f"# 📊 A股开盘快报 ({now})\n\n"
-    report += f"- **行情源**: {source_spot} | **指数源**: {source_index}\n"
-    report += f"## 🌡️ 情绪温度: {temp}℃\n"
-    report += f"- 📈 上涨: {up} | 📉 下跌: {down} | 🔄 样本: {total}\n\n"
-
-    if df_index is not None:
-        report += "## 📈 核心指数\n| 指数名称 | 最新价 | 涨跌幅 |\n| :--- | :--- | :--- |\n"
-        target = ["上证指数", "深证成指", "创业板指"]
-        for name in target:
-            row = df_index[df_index['名称'] == name]
-            if not row.empty:
-                report += f"| {name} | {row.iloc[0]['最新价']} | {row.iloc[0]['涨跌幅']}% |\n"
-
-    report += "\n## 🤖 AI 简评 (2026 版)\n"
-    report += "根据最新宏观展望，2026 年亚洲市场将进入宽松周期后半程。"
-    if temp > 60:
-        report += "市场情绪过热，建议保持警惕，关注 AI 基础设施板块回调机会。"
-    elif temp < 40:
-        report += "开盘情绪低迷，可关注高股息蓝筹股的避险价值。"
-    else:
-        report += "情绪处于中性区间，建议观察量能是否有效放大。"
+    report = f"### {color} A股 AI 决策仪表盘 ({now})\n\n"
+    report += f"| 指标 | 当前值 | 状态 |\n| :--- | :--- | :--- |\n"
+    report += f"| **市场评分** | **{score}** | {status} |\n"
+    report += f"| 涨跌家数 | 🟢{up} / 🔴{down} | 占比 {round(up/(up+down)*100,1)}% |\n\n"
+    
+    report += "#### 📰 实时早间头条\n"
+    for n in news:
+        report += f"- **[{n[0][-8:]}]** {n[1][:60]}...\n"
+    
+    report += "\n#### 🎯 AI 策略建议\n"
+    report += "基于 2026 年宏观环境，建议重点配置 AI 基础设施与高股息蓝筹。"
+    if score > 70: report += "当前过热，建议分批减仓。"
+    else: report += "维持定投计划，关注核心资产。"
 
     with open("report.md", "w", encoding="utf-8") as f:
         f.write(report)
-    print("✅ 报告已生成。")
+    
+    # 执行多渠道主动推送
+    send_notification(report)
+    print("✅ 报告已生成并发送推送。")
 
 if __name__ == "__main__":
     run()
+
 
