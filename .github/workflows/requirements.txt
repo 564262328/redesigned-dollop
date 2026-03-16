@@ -1,3 +1,5 @@
+setuptools
+wheel
 akshare>=1.18.40
 pandas
 requests
@@ -6,4 +8,3 @@ lxml
 html5lib
 py_mini_racer
 cryptography
-urllib3<2.0.0
