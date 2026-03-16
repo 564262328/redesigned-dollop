@@ -6,12 +6,10 @@ on:
   workflow_dispatch:
 
 env:
-  # 强制使用最新的 Actions 环境
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   analyze_market:
-    # 锁定稳定版本系统
     runs-on: ubuntu-22.04 
     steps:
       - name: Checkout Code
@@ -25,24 +23,23 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: '3.11' # 升级到 3.11 以获得更好的解析支持
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libxml2-dev libxslt-dev
 
-      - name: Install All Dependencies
+      - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          # 直接内联安装，不再依赖外部 requirements.txt 文件
+          # 内联安装，包含所有必需的解析引擎
           pip install akshare>=1.18.40 pandas requests beautifulsoup4 lxml html5lib py_mini_racer cryptography
 
-      - name: Run Analysis
-        # 即使数据获取部分失败，脚本也会生成“维护中”报告，不会让 Workflow 变红
+      - name: Run Market Analysis
         run: python market_analysis.py
 
-      - name: Show Result
+      - name: Publish Summary
         run: cat report.md >> $GITHUB_STEP_SUMMARY
 
 
