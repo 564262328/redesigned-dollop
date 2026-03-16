@@ -1,1 +1,37 @@
+name: Daily A-Share Analysis Report
 
+on:
+  schedule:
+    # 01:25 UTC is 09:25 AM Beijing Time (HKT)
+    # Runs Monday to Friday
+    - cron: '25 1 * * 1-5'
+  workflow_dispatch: # Allows manual triggering for testing
+
+jobs:
+  analyze_market:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install akshare pandas
+
+      - name: Execute Analysis Script
+        run: python market_analysis.py
+
+      - name: Upload Report as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-analysis-report-${{ github.run_id }}
+          path: report.md
+
+      - name: Post Summary
+        run: cat report.md >> $GITHUB_STEP_SUMMARY
