@@ -1,12 +1,15 @@
-name: Daily A-Share Analysis Report
+name: A-Share AI Analysis Workflow
 
 on:
   schedule:
     - cron: '25 1 * * 1-5' # 北京时间 09:25
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
-  analyze_market:
+  market_job:
     runs-on: ubuntu-22.04 
     steps:
       - name: Checkout Code
@@ -15,33 +18,31 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20' # 确保 JS 引擎可用以解析 AKShare 加密数据
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libxml2-dev libxslt-dev
-
-      - name: Install Dependencies
-        run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install akshare>=1.18.40 pandas requests beautifulsoup4 lxml html5lib py_mini_racer cryptography
 
-      - name: Execute Analysis & Push
+      - name: Execute Market Analysis
         env:
-          # 将 GitHub Secrets 映射给 Python 环境
+          # 映射您的 GitHub Secrets 到环境变量
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DINGTALK_ACCESS_TOKEN: ${{ secrets.DINGTALK_ACCESS_TOKEN }}
           SCKEY: ${{ secrets.SCKEY }}
         run: python market_analysis.py
 
-      - name: Final Summary
+      - name: Summary
         run: cat report.md >> $GITHUB_STEP_SUMMARY
+
 
 
