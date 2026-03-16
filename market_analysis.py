@@ -4,79 +4,114 @@ import random
 import traceback
 from datetime import datetime
 
-# --- 核心依赖预检 ---
+# --- 依赖项自检 ---
 try:
     import akshare as ak
     import pandas as pd
 except ImportError:
-    print("❌ 脚本环境未就绪，请检查 GitHub Actions 步骤。")
+    print("❌ 环境异常，请确认 GitHub Actions 依赖安装步骤。")
     sys.exit(1)
 
-def fetch_sentiment_with_fallback(max_retries=3):
-    """优先东财，失败则切换新浪，带重试机制。"""
-    for i in range(max_retries):
-        try:
-            time.sleep(random.uniform(1, 3)) # 随机延迟避开防爬
-            print(f"尝试获取市场行情 (第 {i+1} 次)...")
-            
-            # 方案 A: 东方财富
-            df = ak.stock_zh_a_spot_em()
-            if df is not None and not df.empty:
-                print("✅ 成功获取东财数据")
-                up = len(df[df['涨跌幅'] > 0])
-                down = len(df[df['涨跌幅'] < 0])
-                temp = (up / len(df)) * 100
-                return round(temp, 2), up, down, len(df), "东财数据源"
-        except Exception as e:
-            print(f"东财接口异常: {e}")
-            
-        try:
-            # 方案 B: 新浪财经备份
-            df_sina = ak.stock_zh_a_spot_sina()
-            if df_sina is not None and not df_sina.empty:
-                print("✅ 成功获取新浪数据")
-                # 新浪字段可能不同，需转换
-                up = len(df_sina[df_sina['pcp'] > 0]) if 'pcp' in df_sina.columns else 0
-                return 50.0, up, 0, len(df_sina), "新浪备选源"
-        except Exception as e:
-            print(f"新浪接口异常: {e}")
-            
-    return 50.0, 0, 0, 0, "数据源维护中"
-
-def get_indices():
-    """获取主要指数表现。"""
+def fetch_a_share_spot():
+    """三级容错获取全 A 股行情数据。"""
+    # 方案 1: 东方财富 (标准)
     try:
+        print("Step 1: 尝试从东方财富获取行情...")
+        df = ak.stock_zh_a_spot_em()
+        if df is not None and not df.empty:
+            return df, "东方财富"
+    except Exception as e:
+        print(f"东财接口异常: {e}")
+
+    time.sleep(random.uniform(1, 2))
+
+    # 方案 2: 新浪财经 (备份) - 接口名为 stock_zh_a_spot
+    try:
+        print("Step 2: 尝试从新浪财经获取行情...")
+        df = ak.stock_zh_a_spot() # 注意：不是 stock_zh_a_spot_sina
+        if df is not None and not df.empty:
+            # 统一字段名以适配后续分析逻辑
+            df = df.rename(columns={'trade': '最新价', 'pricechange': '涨跌额', 'changepercent': '涨跌幅'})
+            return df, "新浪财经"
+    except Exception as e:
+        print(f"新浪接口异常: {e}")
+
+    time.sleep(random.uniform(1, 2))
+
+    # 方案 3: 分交易所抓取 (最后的防线)
+    try:
+        print("Step 3: 尝试分交易所获取行情...")
+        sh = ak.stock_sh_a_spot_em()
+        sz = ak.stock_sz_a_spot_em()
+        bj = ak.stock_bj_a_spot_em()
+        df = pd.concat([sh, sz, bj], ignore_index=True)
+        if not df.empty:
+            return df, "分交易所合并"
+    except Exception as e:
+        print(f"分交易所接口异常: {e}")
+
+    return None, None
+
+def fetch_indices():
+    """双源获取核心指数。"""
+    try:
+        # 方案 1: 东财
         df = ak.stock_zh_index_spot_em()
-        target = ["上证指数", "深证成指", "创业板指"]
-        return df[df['名称'].isin(target)].to_dict('records')
+        if df is not None and not df.empty:
+            return df, "东财"
     except:
-        return []
+        pass
+    
+    try:
+        # 方案 2: 新浪
+        df = ak.stock_zh_index_spot()
+        if df is not None and not df.empty:
+            return df.rename(columns={'last': '最新价', 'pct_chg': '涨跌幅'}), "新浪"
+    except:
+        return None, None
 
 def run():
-    print("🚀 开始执行 A股开盘分析...")
-    temp, up, down, total, source = fetch_sentiment_with_fallback()
-    indices = get_indices()
+    print(f"🚀 开始执行 A股早报分析 (当前时间: {datetime.now()})")
     
+    df_spot, source_spot = fetch_a_share_spot()
+    df_index, source_index = fetch_indices()
+    
+    if df_spot is None:
+        print("❌ 所有行情接口均失效，请检查网络或 AKShare 版本。")
+        sys.exit(1)
+
+    # 计算情绪温度
+    total = len(df_spot)
+    up = len(df_spot[df_spot['涨跌幅'] > 0])
+    down = len(df_spot[df_spot['涨跌幅'] < 0])
+    temp = round((up / total) * 100, 2) if total > 0 else 50.0
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    report = f"# 📊 A股市场开盘快报 ({now})\n\n"
-    report += f"**数据来源**: {source}\n\n"
+    report = f"# 📊 A股开盘快报 ({now})\n\n"
+    report += f"- **行情源**: {source_spot} | **指数源**: {source_index}\n"
     report += f"## 🌡️ 情绪温度: {temp}℃\n"
-    report += f"- 📈 上涨: {up} | 📉 下跌: {down} | 🔄 总数: {total}\n\n"
-    
-    if indices:
-        report += "## 📈 核心指数\n| 名称 | 价格 | 涨跌幅 |\n| :--- | :--- | :--- |\n"
-        for item in indices:
-            report += f"| {item['名称']} | {item['最新价']} | {item['涨跌幅']}% |\n"
-    
-    report += "\n## 🤖 AI 简评\n"
-    if temp < 35:
-        report += "市场开盘情绪较低。建议关注 2026 年政策利好的 AI 算力及自主可控板块。"
+    report += f"- 📈 上涨: {up} | 📉 下跌: {down} | 🔄 样本: {total}\n\n"
+
+    if df_index is not None:
+        report += "## 📈 核心指数\n| 指数名称 | 最新价 | 涨跌幅 |\n| :--- | :--- | :--- |\n"
+        target = ["上证指数", "深证成指", "创业板指"]
+        for name in target:
+            row = df_index[df_index['名称'] == name]
+            if not row.empty:
+                report += f"| {name} | {row.iloc[0]['最新价']} | {row.iloc[0]['涨跌幅']}% |\n"
+
+    report += "\n## 🤖 AI 简评 (2026 版)\n"
+    report += "根据最新宏观展望，2026 年亚洲市场将进入宽松周期后半程。"
+    if temp > 60:
+        report += "市场情绪过热，建议保持警惕，关注 AI 基础设施板块回调机会。"
+    elif temp < 40:
+        report += "开盘情绪低迷，可关注高股息蓝筹股的避险价值。"
     else:
-        report += "开盘情绪稳健，建议关注量能变化。"
+        report += "情绪处于中性区间，建议观察量能是否有效放大。"
 
     with open("report.md", "w", encoding="utf-8") as f:
         f.write(report)
-    print("✅ 分析报表已生成。")
+    print("✅ 报告已生成。")
 
 if __name__ == "__main__":
     run()
