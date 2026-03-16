@@ -19,7 +19,7 @@ except ImportError:
 def robust_column_mapping(df, target_map):
     """
     智能映射不同数据源的列名，防止 KeyError
-    target_map: {'pct': ['涨跌幅', 'changepercent', 'pct_change'], 'price': ['最新价', 'trade', 'current_price']}
+    target_map: {'pct': ['涨跌幅', 'changepercent', '涨跌百分比', '涨跌幅(%)']}
     """
     if df is None or df.empty:
         return df
@@ -87,12 +87,11 @@ def tenacity_fetch(func, *args, **kwargs):
 # --- 核心数据接口 ---
 def get_market_data():
     """获取全市场增强行情，带自适应映射"""
-    # 字段库定义
     FIELD_MAP = {
         'code': ['代码', 'code', 'symbol'],
         'name': ['名称', 'name'],
         'price': ['最新价', 'trade', '最新'],
-        'pct': ['涨跌幅', 'changepercent', '涨跌百分比'],
+        'pct': ['涨跌幅', 'changepercent', '涨跌百分比', '涨跌幅(%)'],
         'turnover': ['换手率', 'turnoverratio', '换手'],
         'vol_ratio': ['量比', 'volume_ratio'],
         'pe': ['市盈率-动态', 'per', 'pe']
@@ -119,29 +118,25 @@ def get_chip_analysis(symbol="000001"):
     except: return None
 
 def get_news_2026():
-    """彻底修复 AttributeError: 使用 2026 最新财经快讯接口"""
+    """使用 2026 最新百度财经快讯接口"""
     try:
-        # 使用百度财经接口，1.18.40 移除 js_news 后的最佳替代方案
         df = tenacity_fetch(ak.news_economic_baidu)
-        # 百度快讯返回字段为 date, title
+        # 字段对齐: date, title
         return df.head(5).values.tolist()
     except Exception as e:
         print(f"⚠️ 新闻获取异常: {e}")
         return [["-", "实时新闻通道拥堵"]]
 
 def send_push(content):
-    """修复推送 Key 变量命名 Bug"""
-    sckey = os.getenv("SCKEY")
-    if not sckey:
-        print("⚠️ 未配置 SCKEY，跳过微信推送。")
+    """修复推送变量命名 Bug"""
+    sckey_env = os.getenv("SCKEY")
+    if not sckey_env:
+        print("⚠️ 未配置 SCKEY，跳过推送。")
         return
     try:
-        if sckey.startswith("sctp"):
-            url = f"https://{sckey}.push.ft07.com/send"
-        else:
-            url = f"https://sctapi.ftqq.com/{sckey}.send"
-            
-        params = {"title": "A股 2026 AI 决策早报", "desp": content}
+        # 兼容 SCTP 和旧版 Turbo Key
+        url = f"https://{sckey_env}.push.ft07.com/send" if sckey_env.startswith("sctp") else f"https://sctapi.ftqq.com/{sckey_env}.send"
+        params = {"title": "A股 2026 AI 决策早报 (v2.4)", "desp": content}
         res = requests.post(url, json=params, timeout=15)
         print(f"📡 推送响应: {res.text}")
     except Exception as e:
@@ -151,29 +146,32 @@ def run():
     now_dt = datetime.now()
     print(f"🚀 系统启动: {now_dt.strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # 1. 获取行情
+    # 1. 数据采集
     df, source = get_market_data()
     
-    # 2. 检查 pct 列是否存在 (防御性检查)
-    if 'pct' not in df.columns:
-        print(f"❌ 关键列 'pct' 缺失！当前列名: {df.columns.tolist()}")
-        # 尝试自动补全一个全 0 的列以防止崩溃
-        df['pct'] = 0.0
-    
-    # 3. 核心计算
+    # 2. 安全措施：处理缺失的 'pct' 列 [用户建议实施]
+    if df is None or 'pct' not in df.columns:
+        print(f"⚠️ 警告: 'pct' 列缺失，正在使用默认值补全。当前列: {df.columns.tolist() if df is not None else 'None'}")
+        if df is not None:
+            df['pct'] = 0.0
+        else:
+            # 如果整表获取失败，生成模拟数据防止后续崩溃
+            df = pd.DataFrame({'pct': [0.0], 'name': ['数据获取失败']})
+
+    # 3. 数据清洗与统计
     df['pct'] = pd.to_numeric(df['pct'], errors='coerce').fillna(0)
     up = len(df[df['pct'] > 0])
     total = len(df)
     score = round((up/total)*70 + 30, 1) if total > 0 else 50
     
-    # 4. 深度数据
-    chips = get_chip_analysis("000001") # 以沪指参考
+    # 4. 深度洞察
+    chips = get_chip_analysis("000001")
     news = get_news_2026()
     
-    # 5. 构建报表
+    # 5. 生成报告
     report = f"## 💎 A股 AI 工业级早报 ({now_dt.strftime('%Y-%m-%d %H:%M')})\n\n"
     report += f"| 指标 | 当前值 | 状态 |\n| :--- | :--- | :--- |\n"
-    report += f"| **市场评分** | **{score}** | {'多头活跃' if score > 60 else '空头占优'} |\n"
+    report += f"| **市场评分** | **{score}** | {'活跃' if score > 60 else '保守'} |\n"
     report += f"| 涨跌分布 | 🟢{up} / 🔴{total-up} | 赚钱效应 {round(up/total*100, 1) if total>0 else 0}% |\n"
     
     if chips:
@@ -183,22 +181,21 @@ def run():
 
     report += "#### 📰 实时全球财经快讯\n"
     for n in news:
-        # 对齐百度快讯字段 [date, title]
         report += f"- **[{str(n[0])[-5:]}]** {str(n[1])[:50]}...\n"
     
     report += "\n#### 🎯 AI 策略决策建议\n"
     if chips and chips['profit'] > 85:
-        report += "⚠️ **高位风险**：获利盘 > 85%，显示筹码处于极度浮躁期，谨防冲高回落。"
+        report += "⚠️ **警惕风险**：获利盘 > 85%，市场处于极度贪婪期。"
     elif chips and chips['profit'] < 15:
-        report += "✅ **底部信号**：获利盘 < 15%，属于极度超跌区间，长线资金可考虑入场。"
+        report += "✅ **底部区间**：获利盘 < 15%，属于历史超跌位，适合分批入场。"
     else:
-        report += "⚖️ **中枢博弈**：筹码分布均衡，建议关注 3300-3400 震荡区间表现。"
+        report += "⚖️ **中枢震荡**：筹码分布合理，建议关注量比配合情况，维持均衡仓位。"
 
-    # 保存并推送
+    # 保存并发送
     with open("report.md", "w", encoding="utf-8") as f:
         f.write(report)
     send_push(report)
-    print("✅ 分析任务圆满完成。")
+    print("✅ 分析任务完成。")
 
 if __name__ == "__main__":
     run()
