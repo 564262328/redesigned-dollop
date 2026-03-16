@@ -15,38 +15,55 @@ except ImportError:
     sys.exit(1)
 
 def send_push(content):
-    """多渠道主动推送逻辑"""
-    # 1. Telegram 推送
+    """多渠道主动推送逻辑 (已针对 2026 Server酱 SCTP 协议优化)"""
+    
+    # --- 1. Server酱 (微信通知) ---
+    sckey = os.getenv("SCKEY")
+    if sckey:
+        try:
+            # 自动识别 SCTP (ServerChan³) 类型 Key
+            if sckey.startswith("sctp"):
+                # SCTP 协议需要使用 JSON 格式和特定的 push 域名
+                url = f"https://{sckey}.push.ft07.com/send"
+                payload = {"title": "A股分析早报", "desp": content}
+                resp = requests.post(url, json=payload, timeout=15)
+            else:
+                # 标准 Turbo 版接口
+                url = f"https://sctapi.ftqq.com/{sckey}.send"
+                payload = {"title": "A股分析早报", "desp": content}
+                resp = requests.post(url, data=payload, timeout=15)
+            
+            if resp.status_code == 200:
+                print(f"✅ Server酱推送成功: {resp.text}")
+            else:
+                print(f"❌ Server酱推送失败 (HTTP {resp.status_code}): {resp.text}")
+        except Exception as e:
+            print(f"⚠️ Server酱连接异常: {e}")
+
+    # --- 2. 钉钉推送 ---
+    dd_token = os.getenv("DINGTALK_ACCESS_TOKEN")
+    if dd_token:
+        try:
+            url = f"https://oapi.dingtalk.com{dd_token}"
+            data = {"msgtype": "markdown", "markdown": {"title": "A股分析早报", "text": content}}
+            resp = requests.post(url, json=data, timeout=10)
+            print(f"📢 钉钉状态: {resp.text}")
+        except: pass
+
+    # --- 3. Telegram 推送 ---
     tg_token = os.getenv("TELEGRAM_TOKEN")
     tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if tg_token and tg_chat_id:
         try:
             url = f"https://api.telegram.org{tg_token}/sendMessage"
             requests.post(url, data={"chat_id": tg_chat_id, "text": content, "parse_mode": "Markdown"}, timeout=10)
-        except: print("TG 推送失败")
-
-    # 2. 钉钉推送
-    dd_token = os.getenv("DINGTALK_ACCESS_TOKEN")
-    if dd_token:
-        try:
-            url = f"https://oapi.dingtalk.com{dd_token}"
-            data = {"msgtype": "markdown", "markdown": {"title": "A股分析早报", "text": content}}
-            requests.post(url, json=data, timeout=10)
-        except: print("钉钉推送失败")
-
-    # 3. Server酱 (微信通知)
-    sckey = os.getenv("SCKEY")
-    if sckey:
-        try:
-            url = f"https://sctapi.ftqq.com{sckey}.send"
-            requests.post(url, data={"title": "A股分析早报", "desp": content}, timeout=10)
-        except: print("Server酱推送失败")
+        except: pass
 
 def fetch_market_data():
     """三级行情源切换，彻底解决 RemoteDisconnected 问题"""
     # 方案 A: 东方财富
     try:
-        print("尝试从东方财富获取行情...")
+        print("正在获取全市场实时行情 (EM)...")
         df = ak.stock_zh_a_spot_em()
         if df is not None and not df.empty:
             return df, "东方财富"
@@ -58,7 +75,7 @@ def fetch_market_data():
     # 方案 B: 新浪财经
     try:
         print("尝试从新浪财经获取行情...")
-        df = ak.stock_zh_a_spot() # 修正接口名
+        df = ak.stock_zh_a_spot() 
         if df is not None and not df.empty:
             df = df.rename(columns={'trade': '最新价', 'changepercent': '涨跌幅'})
             return df, "新浪财经"
@@ -90,7 +107,6 @@ def analyze_and_score(df_spot):
     down = len(df_spot[df_spot['涨跌幅'] < 0])
     up_ratio = (up / total) * 100 if total > 0 else 50
     
-    # 简单的 AI 评分逻辑
     score = round(up_ratio * 0.7 + 30, 1)
     if up_ratio > 65: status, icon = "极其强劲", "🔥"
     elif up_ratio < 35: status, icon = "情绪恐慌", "❄️"
@@ -110,7 +126,7 @@ def run():
     score, status, icon, up, down, total = analyze_and_score(df_spot)
     news = get_live_news()
     
-    # 构建 Markdown 报告
+    # 构建报告
     report = f"## {icon} A股 AI 决策仪表盘 ({now_str})\n\n"
     report += f"| 指标 | 数值 | 状态 |\n| :--- | :--- | :--- |\n"
     report += f"| **市场评分** | **{score}** | {status} |\n"
@@ -121,23 +137,19 @@ def run():
     for item in news:
         report += f"- **[{item[0][-8:]}]** {item[1][:60]}...\n"
     
-    report += "\n#### 🎯 AI 投资建议 (2026版)\n"
-    if score > 75:
-        report += "当前情绪亢奋，建议分批锁定利润，关注科技成长股。"
-    elif score < 35:
-        report += "市场极度悲观，可分批布局高股息蓝筹或核心指数 ETF。"
-    else:
-        report += "震荡市操作难度大，建议轻仓观望，等待放量信号。"
+    report += "\n#### 🎯 AI 策略建议\n"
+    if score > 75: report += "情绪亢奋，建议分段止盈。"
+    elif score < 35: report += "悲观极致，关注核心资产布局机会。"
+    else: report += "窄幅震荡，建议观察量能变化。"
 
-    # 保存报告
     with open("report.md", "w", encoding="utf-8") as f:
         f.write(report)
     
-    # 主动推送
     send_push(report)
-    print("✅ 分析完成，报告已发送推送。")
+    print("✅ 分析完成。")
 
 if __name__ == "__main__":
     run()
+
 
 
