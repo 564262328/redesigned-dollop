@@ -5,11 +5,6 @@ on:
     - cron: '25 1 * * 1-5' # 北京时间 09:25
   workflow_dispatch:
 
-# 必须开启权限以支持免费 Issue 报告页面
-permissions:
-  issues: write
-  contents: read
-
 jobs:
   analyze_job:
     runs-on: ubuntu-22.04 
@@ -36,8 +31,6 @@ jobs:
 
       - name: Run Quant Engine
         env:
-          # 自动注入 GitHub 令牌，无需手动在 Secrets 中配置
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SCKEY: ${{ secrets.SCKEY }}
         run: python market_analysis.py
 
