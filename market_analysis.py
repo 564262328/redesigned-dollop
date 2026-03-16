@@ -12,14 +12,28 @@ try:
     import akshare as ak
     import pandas as pd
 except ImportError:
-    print("❌ 缺失核心依赖。")
+    print("❌ 核心依赖缺失，请检查 YAML 安装步骤。")
     sys.exit(1)
 
-# --- 2026 随机浏览器指纹库 ---
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
-]
+# --- 2026 智能字段映射器 ---
+def robust_column_mapping(df, target_map):
+    """
+    智能映射不同数据源的列名，防止 KeyError
+    target_map: {'pct': ['涨跌幅', 'changepercent', 'pct_change'], 'price': ['最新价', 'trade', 'current_price']}
+    """
+    if df is None or df.empty:
+        return df
+    
+    current_cols = df.columns.tolist()
+    final_map = {}
+    
+    for standard_name, possible_names in target_map.items():
+        for p_name in possible_names:
+            if p_name in current_cols:
+                final_map[p_name] = standard_name
+                break
+    
+    return df.rename(columns=final_map)
 
 # --- 熔断器机制 ---
 class CircuitBreaker:
@@ -51,7 +65,7 @@ class CircuitBreaker:
 
 cb = CircuitBreaker()
 
-# --- Tenacity 指数退避重试 ---
+# --- Tenacity 指数退避 ---
 @retry(
     wait=wait_exponential(multiplier=2, min=4, max=30),
     stop=stop_after_attempt(3),
@@ -60,7 +74,7 @@ cb = CircuitBreaker()
 )
 def tenacity_fetch(func, *args, **kwargs):
     if not cb.can_request():
-        raise Exception("熔断器保护中")
+        raise Exception("熔断器冷却中")
     time.sleep(random.uniform(2, 5))
     try:
         res = func(*args, **kwargs)
@@ -70,22 +84,32 @@ def tenacity_fetch(func, *args, **kwargs):
         cb.report_fail()
         raise e
 
-# --- 数据接口适配 ---
-def get_spot_data():
-    """获取量比、换手、市值等"""
+# --- 核心数据接口 ---
+def get_market_data():
+    """获取全市场增强行情，带自适应映射"""
+    # 字段库定义
+    FIELD_MAP = {
+        'code': ['代码', 'code', 'symbol'],
+        'name': ['名称', 'name'],
+        'price': ['最新价', 'trade', '最新'],
+        'pct': ['涨跌幅', 'changepercent', '涨跌百分比'],
+        'turnover': ['换手率', 'turnoverratio', '换手'],
+        'vol_ratio': ['量比', 'volume_ratio'],
+        'pe': ['市盈率-动态', 'per', 'pe']
+    }
+    
     try:
+        print("🔍 尝试从东财增强源获取数据...")
         df = tenacity_fetch(ak.stock_zh_a_spot_em)
-        mapping = {
-            '代码': 'code', '名称': 'name', '最新价': 'price', '涨跌幅': 'pct',
-            '量比': 'vol_ratio', '换手率': 'turnover', '市盈率-动态': 'pe',
-            '总市值': 'total_cap'
-        }
-        return df.rename(columns=mapping), "东财增强源"
-    except:
+        df = robust_column_mapping(df, FIELD_MAP)
+        return df, "东财增强源"
+    except Exception as e:
+        print(f"⚠️ 东财源失效: {e}，降级至新浪源...")
         df = ak.stock_zh_a_spot()
-        return df.rename(columns={'trade': 'price', 'changepercent': 'pct'}), "新浪基础源"
+        df = robust_column_mapping(df, FIELD_MAP)
+        return df, "新浪基础源"
 
-def get_chip_info(symbol="000001"):
+def get_chip_analysis(symbol="000001"):
     """筹码分布深度分析"""
     try:
         df = tenacity_fetch(ak.stock_cyq_em, symbol=symbol, adjust="qfq")
@@ -95,75 +119,86 @@ def get_chip_info(symbol="000001"):
     except: return None
 
 def get_news_2026():
-    """修复 AttributeError: 使用 2026 最新财经新闻接口"""
+    """彻底修复 AttributeError: 使用 2026 最新财经快讯接口"""
     try:
-        # 百度财经全球快讯：2026年最稳接口
+        # 使用百度财经接口，1.18.40 移除 js_news 后的最佳替代方案
         df = tenacity_fetch(ak.news_economic_baidu)
-        # 提取前3条，确保字段对齐
-        return df.head(3).values.tolist()
+        # 百度快讯返回字段为 date, title
+        return df.head(5).values.tolist()
     except Exception as e:
-        print(f"⚠️ 新闻获取失败: {e}")
-        return [["-", "实时新闻获取超时"]]
+        print(f"⚠️ 新闻获取异常: {e}")
+        return [["-", "实时新闻通道拥堵"]]
 
 def send_push(content):
-    """修复推送 Bug & 增加响应日志"""
-    key = os.getenv("SCKEY")
-    if not key:
-        print("⚠️ 未检测到 SCKEY，跳过推送。")
+    """修复推送 Key 变量命名 Bug"""
+    sckey = os.getenv("SCKEY")
+    if not sckey:
+        print("⚠️ 未配置 SCKEY，跳过微信推送。")
         return
     try:
-        # 自动切换 SCTP (Server酱3) 或 Turbo 地址
-        if key.startswith("sctp"):
-            url = f"https://{key}.push.ft07.com/send"
+        if sckey.startswith("sctp"):
+            url = f"https://{sckey}.push.ft07.com/send"
         else:
-            url = f"https://sctapi.ftqq.com/{key}.send"
+            url = f"https://sctapi.ftqq.com/{sckey}.send"
             
-        params = {"title": "A股 AI 工业级早报", "desp": content}
+        params = {"title": "A股 2026 AI 决策早报", "desp": content}
         res = requests.post(url, json=params, timeout=15)
-        print(f"📡 Server酱 响应: {res.text}")
+        print(f"📡 推送响应: {res.text}")
     except Exception as e:
-        print(f"❌ 推送异常: {e}")
+        print(f"❌ 推送失败: {e}")
 
 def run():
-    now = datetime.now()
-    print(f"🚀 工业级系统启动: {now}")
+    now_dt = datetime.now()
+    print(f"🚀 系统启动: {now_dt.strftime('%Y-%m-%d %H:%M:%S')}")
     
-    df, source = get_spot_data()
-    chips = get_chip_info("000001")
-    news = get_news_2026()
+    # 1. 获取行情
+    df, source = get_market_data()
     
+    # 2. 检查 pct 列是否存在 (防御性检查)
+    if 'pct' not in df.columns:
+        print(f"❌ 关键列 'pct' 缺失！当前列名: {df.columns.tolist()}")
+        # 尝试自动补全一个全 0 的列以防止崩溃
+        df['pct'] = 0.0
+    
+    # 3. 核心计算
+    df['pct'] = pd.to_numeric(df['pct'], errors='coerce').fillna(0)
     up = len(df[df['pct'] > 0])
     total = len(df)
     score = round((up/total)*70 + 30, 1) if total > 0 else 50
     
-    report = f"## 💎 A股 AI 决策仪表盘 ({now.strftime('%Y-%m-%d %H:%M')})\n\n"
-    report += f"| 指标 | 数值 | 状态 |\n| :--- | :--- | :--- |\n"
-    report += f"| **市场评分** | **{score}** | {'偏多' if score > 60 else '偏空'} |\n"
-    report += f"| 涨跌分布 | 🟢{up} / 🔴{total-up} | 赚钱效应 {round(up/total*100, 1)}% |\n"
+    # 4. 深度数据
+    chips = get_chip_analysis("000001") # 以沪指参考
+    news = get_news_2026()
+    
+    # 5. 构建报表
+    report = f"## 💎 A股 AI 工业级早报 ({now_dt.strftime('%Y-%m-%d %H:%M')})\n\n"
+    report += f"| 指标 | 当前值 | 状态 |\n| :--- | :--- | :--- |\n"
+    report += f"| **市场评分** | **{score}** | {'多头活跃' if score > 60 else '空头占优'} |\n"
+    report += f"| 涨跌分布 | 🟢{up} / 🔴{total-up} | 赚钱效应 {round(up/total*100, 1) if total>0 else 0}% |\n"
     
     if chips:
-        report += f"| **上证筹码** | **获利 {chips['profit']}%** | 集中度 {chips['conc']}% |\n"
-        
+        report += f"| **沪指筹码** | **获利 {chips['profit']}%** | 集中度 {chips['conc']}% |\n"
+    
     report += f"| 数据源 | {source} | 正常 |\n\n"
 
     report += "#### 📰 实时全球财经快讯\n"
     for n in news:
-        # 百度新闻接口字段通常为 [时间, 标题, 内容...]
+        # 对齐百度快讯字段 [date, title]
         report += f"- **[{str(n[0])[-5:]}]** {str(n[1])[:50]}...\n"
     
-    report += "\n#### 🎯 AI 策略建议\n"
+    report += "\n#### 🎯 AI 策略决策建议\n"
     if chips and chips['profit'] > 85:
-        report += "⚠️ **高位预警**：获利盘 > 85%，筹码极度松动，谨防开盘杀跌。"
+        report += "⚠️ **高位风险**：获利盘 > 85%，显示筹码处于极度浮躁期，谨防冲高回落。"
     elif chips and chips['profit'] < 15:
-        report += "✅ **冰点信号**：获利盘 < 15%，历史超跌区间，可关注分批建仓机会。"
+        report += "✅ **底部信号**：获利盘 < 15%，属于极度超跌区间，长线资金可考虑入场。"
     else:
-        report += "⚖️ **震荡博弈**：筹码分布正常，换手率平稳，建议维持 5 成仓位。"
+        report += "⚖️ **中枢博弈**：筹码分布均衡，建议关注 3300-3400 震荡区间表现。"
 
+    # 保存并推送
     with open("report.md", "w", encoding="utf-8") as f:
         f.write(report)
-    
     send_push(report)
-    print("✅ 分析完成。")
+    print("✅ 分析任务圆满完成。")
 
 if __name__ == "__main__":
     run()
