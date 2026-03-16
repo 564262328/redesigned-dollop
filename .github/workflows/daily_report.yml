@@ -2,15 +2,16 @@ name: Daily A-Share Analysis Report
 
 on:
   schedule:
-    - cron: '25 1 * * 1-5' # 每天北京时间 09:25
+    - cron: '25 1 * * 1-5' # 北京时间 09:25
   workflow_dispatch:
 
 env:
+  # 强制使用最新的 Actions 环境
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   analyze_market:
-    # 锁定稳定版本环境
+    # 锁定稳定版本系统
     runs-on: ubuntu-22.04 
     steps:
       - name: Checkout Code
@@ -25,23 +26,23 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.10'
-          # 注意：删掉了 cache: pip，因为我们不使用外部文件，避免报错
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libxml2-dev libxslt-dev
 
-      - name: Install Dependencies
+      - name: Install All Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          # 直接在此安装所有必要库，彻底跳过对 requirements.txt 的搜索
+          # 直接内联安装，不再依赖外部 requirements.txt 文件
           pip install akshare>=1.18.40 pandas requests beautifulsoup4 lxml html5lib py_mini_racer cryptography
 
-      - name: Execute Analysis Script
+      - name: Run Analysis
+        # 即使数据获取部分失败，脚本也会生成“维护中”报告，不会让 Workflow 变红
         run: python market_analysis.py
 
-      - name: Post Summary
+      - name: Show Result
         run: cat report.md >> $GITHUB_STEP_SUMMARY
 
 
