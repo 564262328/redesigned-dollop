@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # 确保 JS 引擎可用以解析 AKShare 加密数据
+          node-version: '20'
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -34,7 +34,6 @@ jobs:
 
       - name: Execute Market Analysis
         env:
-          # 映射您的 GitHub Secrets 到环境变量
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DINGTALK_ACCESS_TOKEN: ${{ secrets.DINGTALK_ACCESS_TOKEN }}
