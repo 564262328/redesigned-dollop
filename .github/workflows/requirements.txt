@@ -1,2 +1,2 @@
-akshare
+akshare>=1.18.40
 pandas
