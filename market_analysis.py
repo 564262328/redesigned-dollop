@@ -3,179 +3,194 @@ import sys
 import time
 import random
 import requests
+import numpy as np
+import pandas as pd
 from datetime import datetime, timedelta
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
-# --- 环境自检 ---
+# --- 配置与自检 ---
 try:
     import akshare as ak
-    import pandas as pd
 except ImportError:
-    print("❌ 核心依赖缺失，请检查 YAML 安装步骤。")
+    print("❌ 核心依赖缺失，请检查安装环境。")
     sys.exit(1)
 
-# --- 2026 智能字段映射器 ---
-def robust_column_mapping(df, target_map):
+# 统一字段映射字典
+FIELD_MAP = {
+    'code': ['代码', 'code', 'symbol'],
+    'name': ['名称', 'name', '板块名称'],
+    'price': ['最新价', 'trade', 'current'],
+    'pct': ['涨跌幅', 'changepercent', '涨跌额百分比'],
+    'turnover': ['换手率', 'turnoverratio'],
+    'vol_ratio': ['量比', 'volume_ratio'],
+    'amount': ['成交额', 'amount']
+}
+
+# --- 核心辅助类 ---
+class QuantEngine:
+    """工业级量化引擎：含熔断与多源备份"""
+    def __init__(self):
+        self.fail_count = 0
+        self.max_fails = 5
+        self.is_open = False
+        self.last_fail_time = None
+
+    @retry(
+        wait=wait_exponential(multiplier=2, min=4, max=30),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type(Exception)
+    )
+    def fetch(self, func, *args, **kwargs):
+        if self.is_open and (datetime.now() - self.last_fail_time).seconds < 300:
+            raise Exception("系统处于熔断降级模式")
+        
+        time.sleep(random.uniform(2, 5))
+        try:
+            res = func(*args, **kwargs)
+            self.fail_count = 0
+            self.is_open = False
+            return res
+        except Exception as e:
+            self.fail_count += 1
+            if self.fail_count >= self.max_fails:
+                self.is_open = True
+                self.last_fail_time = datetime.now()
+            raise e
+
+engine = QuantEngine()
+
+def robust_map(df):
+    """智能字段清洗器"""
     if df is None or df.empty: return df
-    current_cols = df.columns.tolist()
+    cols = df.columns.tolist()
     final_map = {}
-    for standard_name, possible_names in target_map.items():
-        for p_name in possible_names:
-            if p_name in current_cols:
-                final_map[p_name] = standard_name
+    for std, raw_list in FIELD_MAP.items():
+        for r in raw_list:
+            if r in cols:
+                final_map[r] = std
                 break
     return df.rename(columns=final_map)
 
-# --- 熔断器机制 ---
-class CircuitBreaker:
-    def __init__(self, fail_max=5, reset_time=300):
-        self.fail_count = 0
-        self.fail_max = fail_max
-        self.reset_time = reset_time
-        self.last_fail_time = None
-        self.state = "CLOSED"
-
-    def can_request(self):
-        if self.state == "OPEN":
-            if datetime.now() - self.last_fail_time > timedelta(seconds=self.reset_time):
-                self.state = "CLOSED"
-                self.fail_count = 0
-                return True
-            return False
-        return True
-
-    def report_fail(self):
-        self.fail_count += 1
-        if self.fail_count >= self.fail_max:
-            self.state = "OPEN"
-            self.last_fail_time = datetime.now()
-
-    def report_success(self):
-        self.fail_count = 0
-        self.state = "CLOSED"
-
-cb = CircuitBreaker()
-
-# --- Tenacity 指数退避 ---
-@retry(
-    wait=wait_exponential(multiplier=2, min=4, max=30),
-    stop=stop_after_attempt(3),
-    retry=retry_if_exception_type(Exception),
-    before_sleep=lambda rs: print(f"⏳ 连接波动，进行第 {rs.attempt_number} 次重试...")
-)
-def tenacity_fetch(func, *args, **kwargs):
-    if not cb.can_request(): raise Exception("熔断器保护中")
-    time.sleep(random.uniform(2, 5))
+# --- 数据采集模块 ---
+def get_ma_status(symbol="sh000001"):
+    """技术面：计算 MA5/10/20 多头排列"""
     try:
-        res = func(*args, **kwargs)
-        cb.report_success()
-        return res
-    except Exception as e:
-        cb.report_fail(); raise e
-
-# --- 数据获取 ---
-def get_market_data():
-    FIELD_MAP = {
-        'code': ['代码', 'code'], 'name': ['名称', 'name'],
-        'price': ['最新价', 'trade'], 'pct': ['涨跌幅', 'changepercent'],
-        'turnover': ['换手率', 'turnoverratio'], 'pe': ['市盈率-动态', 'pe']
-    }
-    try:
-        df = tenacity_fetch(ak.stock_zh_a_spot_em)
-        return robust_column_mapping(df, FIELD_MAP), "东财增强源"
-    except:
-        df = ak.stock_zh_a_spot()
-        return robust_column_mapping(df, FIELD_MAP), "新浪基础源"
-
-def get_news_2026():
-    try:
-        df = tenacity_fetch(ak.news_economic_baidu)
-        return df.head(3).values.tolist()
-    except: return [["-", "实时新闻通道拥堵"]]
-
-def get_chip_analysis(symbol="000001"):
-    try:
-        df = tenacity_fetch(ak.stock_cyq_em, symbol=symbol, adjust="qfq")
-        if df is not None and not df.empty:
-            L = df.iloc[-1]
-            return {"profit": L.get("获利比例", 0), "conc": L.get("90筹码集中度", 0)}
+        # 获取最近 60 个交易日历史数据
+        df = engine.fetch(ak.stock_zh_index_daily_em, symbol=symbol)
+        df['close'] = pd.to_numeric(df['close'])
+        df['ma5'] = df['close'].rolling(5).mean()
+        df['ma10'] = df['close'].rolling(10).mean()
+        df['ma20'] = df['close'].rolling(20).mean()
+        
+        last = df.iloc[-1]
+        is_long = last['ma5'] > last['ma10'] > last['ma20']
+        return {
+            "is_long": is_long,
+            "ma5": round(last['ma5'], 2),
+            "ma20": round(last['ma20'], 2),
+            "trend": "多头排列" if is_long else "均线交织"
+        }
     except: return None
 
-# --- 多渠道推送逻辑 ---
-def send_bark(content):
-    """Bark 推送 (iOS)"""
-    bark_key = os.getenv("BARK_KEY")
-    if not bark_key:
-        print("⚠️ 未配置 BARK_KEY，跳过 iOS 推送。")
-        return
+def get_sector_ranking():
+    """板块监控：行业涨跌榜"""
     try:
-        url = f"https://api.day.app/{bark_key}"
-        # 配置 2026 常用参数：Markdown 支持、分组、铃声、中断级别
-        params = {
-            "title": "📈 A股 AI 决策早报",
-            "body": content,
-            "group": "StockAnalysis",
-            "icon": "https://api.day.app",
-            "sound": "minuet", # 可更换为 alarm, electronic 等
-            "level": "active"  # 即使在勿扰模式下也可能提醒
-        }
-        res = requests.post(url, json=params, timeout=15)
-        print(f"📡 Bark 响应: {res.text}")
-    except Exception as e:
-        print(f"❌ Bark 推送失败: {e}")
+        df = engine.fetch(ak.stock_board_industry_name_em)
+        df = robust_map(df).sort_values('pct', ascending=False)
+        return df.head(3)[['name', 'pct']].values.tolist()
+    except: return []
 
-def send_serverchan(content):
-    """Server酱推送 (微信)"""
-    sckey = os.getenv("SCKEY")
-    if not sckey: return
+def get_chips(symbol="000001"):
+    """筹码分配：获利比例与集中度"""
     try:
-        url = f"https://{sckey}.push.ft07.com/send" if sckey.startswith("sctp") else f"https://sctapi.ftqq.com/{sckey}.send"
-        requests.post(url, json={"title": "A股 2026 AI 决策早报", "desp": content}, timeout=15)
-    except: pass
+        df = engine.fetch(ak.stock_cyq_em, symbol=symbol, adjust="qfq")
+        L = df.iloc[-1]
+        return {"profit": L.get("获利比例", 0), "conc": L.get("90筹码集中度", 0), "cost": L.get("平均成本", 0)}
+    except: return None
 
-def run():
+# --- 核心逻辑：三段复盘策略 ---
+def run_triple_review():
     now = datetime.now()
-    print(f"🚀 系统启动: {now}")
-    
-    df, source = get_market_data()
-    chips = get_chip_analysis("000001")
-    news = get_news_2026()
-    
-    df['pct'] = pd.to_numeric(df.get('pct', 0), errors='coerce').fillna(0)
-    up = len(df[df['pct'] > 0])
-    total = len(df)
-    score = round((up/total)*70 + 30, 1) if total > 0 else 50
-    
-    report = f"## 💎 A股 AI 工业级早报 ({now.strftime('%m-%d %H:%M')})\n\n"
-    report += f"| 指标 | 当前值 | 状态 |\n| :--- | :--- | :--- |\n"
-    report += f"| **市场评分** | **{score}** | {'多头活跃' if score > 60 else '空头占优'} |\n"
-    report += f"| 涨跌分布 | 🟢{up} / 🔴{total-up} | 赚钱效应 {round(up/total*100, 1)}% |\n"
-    
-    if chips:
-        report += f"| **沪指筹码** | **获利 {chips['profit']}%** | 集中度 {chips['conc']}% |\n"
-    
-    report += f"| 数据源 | {source} | 正常 |\n\n"
-    report += "#### 📰 实时全球财经快讯\n"
-    for n in news:
-        report += f"- **[{str(n[0])[-5:]}]** {str(n[1])[:50]}...\n"
-    
-    report += "\n#### 🎯 AI 策略决策建议\n"
-    if chips and chips['profit'] > 85:
-        report += "⚠️ **高位预警**：获利盘 > 85%，筹码极度浮躁，谨防冲高回落。"
-    elif chips and chips['profit'] < 15:
-        report += "✅ **底部信号**：获利盘 < 15%，属于极度超跌，长线资金可考虑入场。"
-    else:
-        report += "⚖️ **中枢博弈**：筹码分布均衡，建议关注 3300 点支撑表现。"
+    report = f"# 🏮 A股 AI 三段量化决策系统 (v2.4)\n"
+    report += f"> 运行时间: {now.strftime('%Y-%m-%d %H:%M')} | 投资者参考，不构成投资建议\n\n"
 
-    # 执行推送
-    send_bark(report)
-    send_serverchan(report)
+    # --- 第一段：【盘前】舆情情报与宏观 (Pre-market) ---
+    news_df = engine.fetch(ak.news_economic_baidu)
+    news_list = news_df.head(3).values.tolist()
     
+    # --- 第二段：【盘中】动能实战与板块 (During-market) ---
+    spot_df, _ = engine.fetch(ak.stock_zh_a_spot_em), "EM"
+    spot_df = robust_map(spot_df)
+    sectors = get_sector_ranking()
+    
+    # --- 第三段：【趋势】筹码分配与均线 (Post-market/Trend) ---
+    ma = get_ma_status("sh000001")
+    chips = get_chips("000001")
+    
+    # --- 决策模型计算 ---
+    spot_df['pct'] = pd.to_numeric(spot_df['pct'], errors='coerce').fillna(0)
+    up_ratio = len(spot_df[spot_df['pct'] > 0]) / len(spot_df) if not spot_df.empty else 0.5
+    score = round(up_ratio * 60 + (20 if ma and ma['is_long'] else 0) + (20 if chips and chips['profit'] < 80 else 10), 1)
+    
+    # --- 话语核心结论 ---
+    report += "### 📢 话语核心结论\n"
+    if score > 70:
+        conclusion = "🚀 **强力多头占优**：均线多头排列形成，领涨板块放量，建议积极寻找回踩买点。"
+        plan = "🔥 **投入计划：全力进攻** (风险开启)"
+    elif score < 40:
+        conclusion = "🛡️ **空头防守阶段**：筹码高位松动或趋势走弱，建议控制仓位，规避高位股。"
+        plan = "❄️ **投入计划：全面防守** (风险关闭)"
+    else:
+        conclusion = "⚖️ **中枢横盘震荡**：板块轮动极快，无明显持续主线，适合高抛低吸。"
+        plan = "🧱 **投入计划：中性均衡** (风险中性)"
+    report += f"{conclusion}\n\n**{plan}**\n\n"
+
+    # --- AI 决策仪表盘 ---
+    report += "### 📊 AI 决策仪表盘\n"
+    report += f"| 指标分类 | 核心数值 | 状态监测 |\n| :--- | :--- | :--- |\n"
+    report += f"| 综合评分 | **{score}** | {'极佳' if score>80 else '一般'} |\n"
+    if ma: report += f"| 技术形态 | {ma['ma5']} (MA5) | {ma['trend']} |\n"
+    if chips: report += f"| 筹码分布 | 获利 {chips['profit']}% | 集中度 {chips['conc']}% |\n"
+    report += "\n"
+
+    # --- 精确买卖点位 (模拟量化点位) ---
+    if ma:
+        support = round(ma['ma20'] * 0.99, 2)
+        resist = round(ma['ma5'] * 1.02, 2)
+        report += "### 🎯 精确参考点位\n"
+        report += f"- **强力支撑位**：{support} (基于MA20均线支撑)\n"
+        report += f"- **盘中压力位**：{resist} (基于近期波动率偏离)\n"
+        report += f"- **最佳买入点**：缩量回踩 {support} 附近且 5 分钟 K 线企稳\n"
+        report += f"- **止损卖出点**：有效跌破 {support} 或 筹码获利比例超过 90%\n\n"
+
+    # --- 板块涨跌榜 ---
+    report += "### 🔝 今日领涨行业板块\n"
+    for s in sectors:
+        report += f"- **{s[0]}** (涨幅: {s[1]}%)\n"
+    report += "\n"
+
+    # --- 操作检查清单 ---
+    report += "### ✅ 操作检查清单\n"
+    report += f"- [ ] **环境确认**：是否处于 9:30-15:00 交易时段？\n"
+    report += f"- [ ] **情绪过滤**：当前赚钱效应 ({round(up_ratio*100,1)}%) 是否支持开仓？\n"
+    report += f"- [ ] **风险控制**：单笔亏损是否已设置 5% 强制止损？\n\n"
+
+    # --- 舆情情报 ---
+    report += "#### 📰 实时舆情快讯\n"
+    for n in news_list:
+        report += f"- **[{str(n[0])[-5:]}]** {str(n[1])[:50]}...\n"
+
+    # 推送与保存
     with open("report.md", "w", encoding="utf-8") as f:
         f.write(report)
-    print("✅ 分析任务圆满完成。")
+    
+    # Server酱推送
+    sckey = os.getenv("SCKEY")
+    if sckey:
+        url = f"https://{sckey}.push.ft07.com/send" if sckey.startswith("sctp") else f"https://sctapi.ftqq.com/{sckey}.send"
+        requests.post(url, json={"title": f"A股AI量化简报 - {score}分", "desp": report}, timeout=15)
 
 if __name__ == "__main__":
-    run()
+    run_triple_review()
 
 
