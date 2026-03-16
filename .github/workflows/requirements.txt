@@ -1,2 +1,7 @@
 akshare>=1.18.40
 pandas
+requests
+beautifulsoup4
+lxml
+html5lib
+py_mini_racer
