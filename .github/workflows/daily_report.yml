@@ -7,7 +7,7 @@ on:
 
 jobs:
   analyze_job:
-    runs-on: ubuntu-22.04 
+    runs-on: ubuntu-22.04 # 锁定稳定镜像
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20' # JS 引擎用于 AKShare 加密解析
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -27,7 +27,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libxml2-dev libxslt-dev
           python -m pip install --upgrade pip setuptools wheel
-          # 新增 tenacity 库以支持指数退避重试
+          # 必须安装 tenacity 库以支持重试机制
           pip install akshare>=1.18.40 pandas requests tenacity lxml html5lib py_mini_racer cryptography
 
       - name: Run Quant Engine
@@ -40,6 +40,5 @@ jobs:
 
       - name: Report Summary
         run: cat report.md >> $GITHUB_STEP_SUMMARY
-
 
 
