@@ -1,160 +1,39 @@
-import os
-import sys
-import time
-import random
-import requests
-import traceback
-from datetime import datetime, timedelta
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+name: Industrial A-Share Analysis
 
-# --- 环境检查 ---
-try:
-    import akshare as ak
-    import pandas as pd
-except ImportError:
-    print("❌ 缺少核心依赖，请确认 YAML 中的 pip 安装步骤。")
-    sys.exit(1)
+on:
+  schedule:
+    - cron: '25 1 * * 1-5' # 北京时间 09:25
+  workflow_dispatch:
 
-# --- 2026 随机指纹库 ---
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1"
-]
+jobs:
+  analyze_job:
+    runs-on: ubuntu-22.04 
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
 
-# --- 熔断器机制 ---
-class CircuitBreaker:
-    def __init__(self, fail_max=5, reset_time=300):
-        self.fail_count = 0
-        self.fail_max = fail_max
-        self.reset_time = reset_time
-        self.last_fail_time = None
-        self.state = "CLOSED"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-    def can_request(self):
-        if self.state == "OPEN":
-            if datetime.now() - self.last_fail_time > timedelta(seconds=self.reset_time):
-                self.state = "CLOSED"
-                self.fail_count = 0
-                return True
-            return False
-        return True
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
 
-    def report_fail(self):
-        self.fail_count += 1
-        if self.fail_count >= self.fail_max:
-            self.state = "OPEN"
-            self.last_fail_time = datetime.now()
-            print(f"🔴 触发熔断！冷却期 {self.reset_time}s...")
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxslt-dev
+          python -m pip install --upgrade pip setuptools wheel
+          pip install akshare>=1.18.40 pandas requests tenacity lxml html5lib py_mini_racer cryptography
 
-    def report_success(self):
-        self.fail_count = 0
-        self.state = "CLOSED"
+      - name: Run Quant Engine
+        env:
+          SCKEY: ${{ secrets.SCKEY }}
+        run: python market_analysis.py
 
-cb = CircuitBreaker()
-
-# --- 十级防封抓取逻辑 ---
-@retry(
-    wait=wait_exponential(multiplier=2, min=4, max=30),
-    stop=stop_after_attempt(3),
-    retry=retry_if_exception_type(Exception),
-    before_sleep=lambda rs: print(f"⏳ 正在进行第 {rs.attempt_number} 次指数退避重试...")
-)
-def safe_fetch(func, *args, **kwargs):
-    if not cb.can_request():
-        raise Exception("熔断中...")
-    time.sleep(random.uniform(2, 5)) # 随机休眠
-    try:
-        res = func(*args, **kwargs)
-        cb.report_success()
-        return res
-    except Exception as e:
-        cb.report_fail()
-        raise e
-
-# --- 核心数据接口 ---
-def get_enhanced_spot():
-    """获取量比、换手、PE、市值等增强数据"""
-    try:
-        df = safe_fetch(ak.stock_zh_a_spot_em)
-        mapping = {
-            '代码': 'code', '名称': 'name', '最新价': 'price', '涨跌幅': 'pct',
-            '量比': 'vol_ratio', '换手率': 'turnover', '市盈率-动态': 'pe',
-            '市净率': 'pb', '总市值': 'total_cap', '流通市值': 'float_cap'
-        }
-        return df.rename(columns=mapping), "东财增强源"
-    except:
-        # 降级方案
-        df = ak.stock_zh_a_spot()
-        return df.rename(columns={'trade': 'price', 'changepercent': 'pct'}), "新浪保底源"
-
-def get_chip_data(symbol="000001"):
-    """筹码深度分析"""
-    try:
-        df = safe_fetch(ak.stock_cyq_em, symbol=symbol, adjust="qfq")
-        if df is not None and not df.empty:
-            L = df.iloc[-1]
-            return {"profit": L['获利比例'], "cost": L['平均成本'], "conc": L['90筹码集中度']}
-    except: return None
-
-def get_latest_news():
-    """修复 AttributeError: 使用 2026 最稳新闻接口"""
-    try:
-        # 替换已失效的 js_news
-        df = safe_fetch(ak.news_economic_baidu)
-        return df.head(5)[['发布时间', '新闻内容']].values.tolist()
-    except:
-        return [["-", "实时新闻通道拥堵"]]
-
-def send_push(content):
-    """多渠道推送"""
-    key = os.getenv("SCKEY")
-    if key:
-        url = f"https://{key}.push.ft07.com/send" if key.startswith("sctp") else f"https://sctapi.ftqq.com/{key}.send"
-        requests.post(url, json={"title": "A股工业级决策简报", "desp": content}, timeout=15)
-
-def run():
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    print(f"🚀 系统启动: {now}")
-    
-    df, source = get_enhanced_spot()
-    chips = get_chip_data("000001")
-    news = get_latest_news()
-    
-    # 评分逻辑
-    up = len(df[df['pct'] > 0])
-    total = len(df)
-    score = round((up/total)*70 + 30, 1) if total > 0 else 50
-    
-    report = f"## 🛠️ A股 AI 工业级决策仪表盘 ({now})\n\n"
-    report += f"| 指标 | 数值 | 状态 |\n| :--- | :--- | :--- |\n"
-    report += f"| **市场评分** | **{score}** | {'强势' if score > 60 else '弱势'} |\n"
-    report += f"| 涨跌分布 | 🟢{up} / 🔴{len(df)-up} | 赚钱效应 {round(up/total*100, 1)}% |\n"
-    
-    if 'turnover' in df.columns:
-        avg_to = round(df['turnover'].mean(), 2)
-        report += f"| 平均换手 | {avg_to}% | {'活跃' if avg_to > 3 else '低迷'} |\n"
-    
-    if chips:
-        report += f"| **上证筹码** | **获利 {chips['profit']}%** | 集中度 {chips['conc']}% |\n"
-    
-    report += f"| 数据源 | {source} | 正常 |\n\n"
-    
-    report += "#### 📰 实时全球财经快讯\n"
-    for n in news:
-        report += f"- **[{n[0][-5:]}]** {n[1][:55]}...\n"
-    
-    report += "\n#### 🎯 AI 策略建议\n"
-    if chips and chips['profit'] > 85: report += "⚠️ 获利盘极高，谨防主力反手砸盘。"
-    elif chips and chips['profit'] < 15: report += "✅ 筹码极度冰点，适合左侧轻仓潜伏。"
-    else: report += "⚖️ 筹码博弈期，量比配合换手，建议观察 3300 点支撑。"
-
-    with open("report.md", "w", encoding="utf-8") as f:
-        f.write(report)
-    
-    send_push(report)
-    print("✅ 分析报表已送达。")
-
-if __name__ == "__main__":
-    run()
+      - name: Report Summary
+        run: cat report.md >> $GITHUB_STEP_SUMMARY
 
