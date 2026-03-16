@@ -1,15 +1,12 @@
-name: A-Share AI Analysis Workflow
+name: Industrial A-Share Analysis
 
 on:
   schedule:
     - cron: '25 1 * * 1-5' # 北京时间 09:25
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
-  market_job:
+  analyze_job:
     runs-on: ubuntu-22.04 
     steps:
       - name: Checkout Code
@@ -30,9 +27,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libxml2-dev libxslt-dev
           python -m pip install --upgrade pip setuptools wheel
-          pip install akshare>=1.18.40 pandas requests beautifulsoup4 lxml html5lib py_mini_racer cryptography
+          # 新增 tenacity 库以支持指数退避重试
+          pip install akshare>=1.18.40 pandas requests tenacity lxml html5lib py_mini_racer cryptography
 
-      - name: Execute Market Analysis
+      - name: Run Quant Engine
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -40,7 +38,7 @@ jobs:
           SCKEY: ${{ secrets.SCKEY }}
         run: python market_analysis.py
 
-      - name: Summary
+      - name: Report Summary
         run: cat report.md >> $GITHUB_STEP_SUMMARY
 
 
