@@ -1,18 +1,22 @@
 import akshare as ak
 import pandas as pd
 from datetime import datetime
-import os
+import traceback
+import sys
 
 def fetch_market_sentiment():
-    """Calculates market sentiment temperature based on A-share advance/decline ratio."""
+    """Calculates market sentiment with safety checks."""
     try:
-        # Fetch real-time snapshot of all A-shares
+        # Fetch real-time snapshot
         df = ak.stock_zh_a_spot_em()
+        if df is None or df.empty:
+            print("Warning: stock_zh_a_spot_em returned empty data.")
+            return 50.0, 0, 0, 0
+            
         total_stocks = len(df)
         up_stocks = len(df[df['涨跌幅'] > 0])
         down_stocks = len(df[df['涨跌幅'] < 0])
         
-        # Sentiment formula: (Up / Total) * 100
         temperature = (up_stocks / total_stocks) * 100 if total_stocks > 0 else 50
         return round(temperature, 2), up_stocks, down_stocks, total_stocks
     except Exception as e:
@@ -20,9 +24,13 @@ def fetch_market_sentiment():
         return 50.0, 0, 0, 0
 
 def get_index_data():
-    """Fetches key index performance (SSE, SZSE, ChiNext)."""
+    """Fetches index performance with individual error handling."""
     try:
         df_index = ak.stock_zh_index_spot_em()
+        if df_index is None or df_index.empty:
+            print("Warning: Index data is empty.")
+            return []
+            
         indices = {
             "上证指数": "000001",
             "深证成指": "399001",
@@ -30,62 +38,68 @@ def get_index_data():
         }
         report_data = []
         for name, code in indices.items():
-            row = df_index[df_index['名称'] == name].iloc[0]
-            report_data.append({
-                "name": name,
-                "price": row['最新价'],
-                "change_pct": row['涨跌幅']
-            })
+            try:
+                # Use flexible matching to avoid IndexError
+                row_match = df_index[df_index['名称'] == name]
+                if not row_match.empty:
+                    row = row_match.iloc[0]
+                    report_data.append({
+                        "name": name,
+                        "price": row['最新价'],
+                        "change_pct": row['涨跌幅']
+                    })
+            except Exception as inner_e:
+                print(f"Skipping index {name} due to: {inner_e}")
         return report_data
     except Exception as e:
-        print(f"Error fetching indices: {e}")
+        print(f"General Index Error: {e}")
         return []
 
-def generate_ai_insights(temp, indices):
-    """Generates rule-based AI insights based on 2026 market themes."""
-    # 2026 Themes: Anti-involution, AI Capex, and GDP 4.3% stability
-    if temp > 70:
-        mood = "极度亢奋 (Extreme Greed)"
-        advice = "警惕短期回调，避免追高。当前市场情绪已触及情绪高位。"
-    elif temp < 30:
-        mood = "恐慌探底 (Fear)"
-        advice = "分批布局优质蓝筹。2026年'反内卷'政策利好行业龙头利润修复。"
+def generate_ai_insights(temp):
+    """Generates insights for 2026 market themes."""
+    # 2026 Macro Context
+    if temp > 75:
+        mood, advice = "情绪过热", "策略：分批减仓，防范高位震荡风险。"
+    elif temp < 25:
+        mood, advice = "极度冰点", "策略：寻找低估值蓝筹，2026年反内卷政策将提升核心资产溢价。"
     else:
-        mood = "中性震荡"
-        advice = "持股观望，关注成交量变化。目前处于宽幅震荡区间。"
+        mood, advice = "平稳运行", "策略：精选板块，关注 AI 算力与电力基建的协同效应。"
 
-    insights = f"**当前市场情绪状态**: {mood}\n\n"
-    insights += f"**2026 宏观背景分析**: \n"
-    insights += "- 关注国内'反内卷'政策对制造行业毛利的修复进度。\n"
-    insights += "- AI 算力基建（预计2026年投入超$700亿）仍是核心驱动力。\n\n"
-    insights += f"**AI 操作建议**: {advice}"
+    insights = f"**市场氛围**: {mood}\n"
+    insights += f"**2026 核心逻辑**: 随着国内 GDP 增速稳定在 4.3% 左右，市场正从'增量竞争'转向'存量优化'。\n"
+    insights += f"**操作建议**: {advice}"
     return insights
 
 def create_report():
-    temp, up, down, total = fetch_market_sentiment()
-    indices = get_index_data()
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-    
-    report = f"# 🚀 A股市场 9:25 开盘早报 ({now_str})\n\n"
-    report += "## 🌡️ 市场情绪温度\n"
-    report += f"**当前温度: {temp}℃**\n"
-    report += f"- 🟢 上涨家数: {up} | 🔴 下跌家数: {down} | ⚪ 总数: {total}\n"
-    report += f"- 情绪参考: < 25 (冰点期) | > 75 (过热期)\n\n"
-    
-    report += "## 📈 大盘核心指数\n"
-    report += "| 指数名称 | 最新价 | 涨跌幅 |\n| :--- | :--- | :--- |\n"
-    for idx in indices:
-        report += f"| {idx['name']} | {idx['price']} | {idx['change_pct']}% |\n"
-    
-    report += "\n## 🤖 AI 智能分析与建议\n"
-    report += generate_ai_insights(temp, indices)
-    
-    report += "\n\n---\n*数据来源: AKShare (开源金融数据库) | 分析引擎: Rule-based AI Engine 2026*"
-    
-    # Save to file
-    with open("report.md", "w", encoding="utf-8") as f:
-        f.write(report)
-    print("Report generated successfully.")
+    try:
+        temp, up, down, total = fetch_market_sentiment()
+        indices = get_index_data()
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        report = f"# 🚀 A股市场 9:25 开盘早报 ({now_str})\n\n"
+        report += "## 🌡️ 市场情绪温度\n"
+        report += f"**当前温度: {temp}℃**\n"
+        report += f"- 🟢 上涨: {up} | 🔴 下跌: {down} | ⚪ 总数: {total}\n\n"
+        
+        report += "## 📈 指数表现\n"
+        if indices:
+            report += "| 指数名称 | 最新价 | 涨跌幅 |\n| :--- | :--- | :--- |\n"
+            for idx in indices:
+                report += f"| {idx['name']} | {idx['price']} | {idx['change_pct']}% |\n"
+        else:
+            report += "*指数数据获取失败，请检查 API 连通性。*\n"
+        
+        report += "\n## 🤖 AI 智能分析\n"
+        report += generate_ai_insights(temp)
+        
+        with open("report.md", "w", encoding="utf-8") as f:
+            f.write(report)
+        print("Success: report.md created.")
+        
+    except Exception:
+        print("Critical Error during report generation:")
+        traceback.print_exc() # This will show the exact line of failure in GH Actions logs
+        sys.exit(1) # Signal failure to GitHub Actions
 
 if __name__ == "__main__":
     create_report()
