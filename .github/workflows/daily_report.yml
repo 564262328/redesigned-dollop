@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
   schedule:
-    - cron: "30 7 * * 1-5" # 15:30 HKT (Market Close)
+    - cron: "37 7 * * 1-5"cron: "12 8 * * 1-5" # 15:30 HKT (Market Close)
   workflow_dispatch: 
 
 permissions:
