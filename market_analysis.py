@@ -5,33 +5,46 @@ from datetime import datetime
 import time
 import json
 import random
+import requests
 
 # --- 1. Database & Helper Functions ---
 DB_FILE = "stocks_db.json"
 
-def load_db():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except: pass
-    return {"last_update": "", "total_count": 0, "stock_list": []}
-
-def save_db(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
+# List of real browser User-Agents to rotate
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+]
 
 def fetch_safe_data(func, *args, **kwargs):
-    # Added retry logic for GitHub Actions environment
-    for i in range(2):
+    """Enhanced fetcher with browser-like headers and retries"""
+    # Create a session with a random User-Agent
+    session = requests.Session()
+    session.headers.update({"User-Agent": random.choice(USER_AGENTS)})
+    
+    # Try up to 3 times
+    for attempt in range(3):
         try:
-            time.sleep(random.uniform(2.0, 5.0))
+            # Random sleep to mimic human behavior (5-10 seconds)
+            wait_time = random.uniform(5.0, 10.0)
+            print(f"  [Attempt {attempt+1}] Waiting {wait_time:.1f}s before request...")
+            time.sleep(wait_time)
+            
+            # Execute the akshare function
             data = func(*args, **kwargs)
-            if not data.empty:
+            
+            if data is not None and not data.empty:
+                print(f"  ✅ Data received: {len(data)} rows.")
                 return data
-        except:
-            continue
+            else:
+                print(f"  ⚠️ Attempt {attempt+1} returned empty data.")
+        except Exception as e:
+            print(f"  ❌ Attempt {attempt+1} failed: {e}")
+            
     return pd.DataFrame()
+
+# ... (The rest of your run() function stays the same) ...
 
 # --- 2. Main Execution Logic ---
 def run():
