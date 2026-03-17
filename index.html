@@ -1,167 +1,30 @@
 
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #020617; background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 80%); min-height: 100vh; color: #f8fafc; font-family: ui-sans-serif, system-ui; }
-        .glass-card { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; }
+        body { background: #020617; color: #f8fafc; font-family: system-ui; font-style: italic; text-transform: uppercase; }
+        .glass-card { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; }
     </style>
 </head>
-<body class="p-4 md:p-12 font-black uppercase tracking-tight italic">
-    <div class="max-w-6xl mx-auto">
-        <header class="flex flex-col md:flex-row justify-between items-center mb-12 border-b border-white/5 pb-10 gap-6">
-            <div>
-                <h1 class="text-4xl font-black italic bg-clip-text text-transparent bg-gradient-to-br from-blue-400 to-emerald-400">QUANT SCANNER v13.5</h1>
-                <p class="text-slate-500 text-[10px] uppercase font-black mt-2 tracking-[0.4em] underline decoration-blue-500/50 underline-offset-8">Multi-Source Leadership Engine</p>
-            </div>
-            <div class="bg-slate-900/80 px-5 py-3 rounded-2xl border border-white/10 shadow-2xl font-bold">
-                <span class="text-blue-400 text-[10px] block mb-1 animate-pulse italic uppercase tracking-widest">● DATA SYNC ACTIVE</span>
-                <span class="text-sm font-mono text-slate-300 italic font-black">2026-03-17 19:19</span>
-            </div>
+<body class="p-6">
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-end mb-8 border-b border-blue-500/30 pb-4">
+            <div><h1 class="text-2xl font-black text-blue-400">TENCENT ENHANCED SCANNER</h1><p class="text-[10px] text-slate-500">v13.6 Multi-Source Pipeline</p></div>
+            <div class="text-right text-xs font-mono text-slate-400">2026-03-17 19:25</div>
         </header>
 
-        <div class="mb-12 glass-card p-8 border border-red-500/20 bg-red-500/5">
-            <h2 class="text-xs font-black text-red-500 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
-                <span class="w-2 h-2 bg-red-500 rounded-full animate-ping"></span> TOP 5 INDUSTRY SECTORS
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-8"><p class='text-slate-500 italic'>Sector API temporarily unavailable.</p></div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">祥明智能</h3><span class="text-[10px] text-slate-500 font-mono italic">sz301226</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥41.74</span><span class="text-xs text-red-500 block font-bold">20.012%</span></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-1 glass-card p-4">
+                <h2 class="text-xs font-bold text-red-500 mb-4 tracking-widest">TOP SECTORS</h2>
+                Syncing...
             </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">纳百川</h3><span class="text-[10px] text-slate-500 font-mono italic">sz301667</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥105.36</span><span class="text-xs text-red-500 block font-bold">20.0%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">中复神鹰</h3><span class="text-[10px] text-slate-500 font-mono italic">sh688295</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥59.4</span><span class="text-xs text-red-500 block font-bold">20.0%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">固德电材</h3><span class="text-[10px] text-slate-500 font-mono italic">sz301680</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥130.8</span><span class="text-xs text-red-500 block font-bold">20.0%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">科马材料</h3><span class="text-[10px] text-slate-500 font-mono italic">bj920086</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥39.16</span><span class="text-xs text-red-500 block font-bold">18.201%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">觅睿科技</h3><span class="text-[10px] text-slate-500 font-mono italic">bj920036</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥60.18</span><span class="text-xs text-red-500 block font-bold">15.221%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">朗科科技</h3><span class="text-[10px] text-slate-500 font-mono italic">sz300042</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥50.9</span><span class="text-xs text-red-500 block font-bold">11.623%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">安阳钢铁</h3><span class="text-[10px] text-slate-500 font-mono italic">sh600569</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥2.82</span><span class="text-xs text-red-500 block font-bold">10.156%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">华民股份</h3><span class="text-[10px] text-slate-500 font-mono italic">sz300345</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥8.25</span><span class="text-xs text-red-500 block font-bold">10.147%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">爱建集团</h3><span class="text-[10px] text-slate-500 font-mono italic">sh600643</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥5.12</span><span class="text-xs text-red-500 block font-bold">10.108%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">金正大</h3><span class="text-[10px] text-slate-500 font-mono italic">sz002470</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥3.6</span><span class="text-xs text-red-500 block font-bold">10.092%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div>
-        <div class="glass-card p-5 border-t-2 border-white/5 hover:border-blue-500/50 transition-all font-black uppercase">
-            <div class="flex justify-between items-start mb-4">
-                <div><h3 class="text-base font-black text-white">华电辽能</h3><span class="text-[10px] text-slate-500 font-mono italic">sh600396</span></div>
-                <div class="text-right"><span class="text-xl font-black text-red-500">¥4.7</span><span class="text-xs text-red-500 block font-bold">10.07%</span></div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 text-[10px] border-t border-white/5 pt-3 uppercase italic font-bold">
-                <div class="flex flex-col"><span class="text-slate-600">换手率</span><span class="text-slate-200">0%</span></div>
-                <div class="flex flex-col text-right"><span class="text-slate-600">量比</span><span class="text-amber-400">N/A</span></div>
-            </div>
-        </div></div>
-
-        <div class="glass-card p-8 border border-blue-500/20">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
-                <h2 class="text-xs font-black text-blue-400 uppercase tracking-widest italic">DATABASE MONITOR</h2>
-                <div class="flex gap-8">
-                    <div class="text-center"><span class="block text-2xl font-black text-white font-mono">5488</span><span class="text-[9px] text-slate-500 uppercase">Total Stocks</span></div>
-                    <div class="text-center border-l border-white/10 pl-8"><span class="block text-2xl font-black text-emerald-400 font-mono">+5488</span><span class="text-[9px] text-slate-500 uppercase">New Today</span></div>
+            <div class="md:col-span-2 space-y-4">
+                <h2 class="text-xs font-bold text-emerald-500 mb-4 tracking-widest">ENHANCED REAL-TIME INSIGHTS (TENCENT)</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    Loading Enhanced Data...
                 </div>
-            </div>
-            <div class="bg-black/40 rounded-xl p-5 border border-white/5 text-[11px] text-slate-400 italic">
-                <span class="text-blue-500 font-black">▶</span> New Listings Log: sh688805, sz300738, sz000521, sz300182, sh603816, sz300703, sh688620, sh603500, sz000707, sz002111
             </div>
         </div>
     </div>
