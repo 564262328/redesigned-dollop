@@ -6,9 +6,9 @@ on:
 
 jobs:
   analyze_and_deploy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     permissions:
-      contents: write # Crucial for deploying to gh-pages
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -20,23 +20,29 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install akshare>=1.18.40 pandas requests tenacity lxml html5lib
+          pip install --upgrade pip
+          pip install akshare pandas requests tenacity lxml html5lib
           
       - name: Run Quant Engine
         env:
           SCKEY: ${{ secrets.SCKEY }}
         run: python market_analysis.py
 
-      - name: Display Summary
-        run: cat report.md >> $GITHUB_STEP_SUMMARY
+      - name: Report Summary
+        run: |
+          if [ -f report.md ]; then
+            cat report.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "# Error: File not found" >> $GITHUB_STEP_SUMMARY
+          fi
 
-      - name: Deploy Dashboard to GitHub Pages
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./ 
           publish_branch: gh-pages
-          # Only keep the dashboard on the web branch
-          exclude_assets: '.github,market_analysis.py,requirements.txt' 
+          exclude_assets: '.github,market_analysis.py,README.md'
+
 
 
