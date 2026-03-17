@@ -1,46 +1,51 @@
-name: A-Share Dashboard
+name: A-Share Quant Dashboard v7.0
+
 on:
+  push:
+    branches: ["main"]
   schedule:
-    - cron: '25 1 * * 1-5' # 北京时间周一至周五 09:25 运行
-  workflow_dispatch:      # 允许手动触发按钮
+    - cron: "30 7 * * 1-5" # Runs at 15:30 Beijing time on weekdays
+  workflow_dispatch: # Allows manual trigger
+
+# 🔑 IMPORTANT: Permissions for GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build:
+  build_and_deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write     # 必须开启写入权限，否则无法发布网页
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.11' # Matches your environment
 
-      - name: Install Deps
+      - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install akshare pandas requests
+          pip install pandas requests yfinance # Add other libs your script needs
 
-      - name: Run Script
-        run: python market_analysis.py  # 确保你的 Python 脚本也叫这个名字
+      - name: Run Quant Analysis
+        run: python market_analysis.py
 
-      - name: Upload Summary
-        # 这一步会将生成的报告直接显示在 GitHub Action 的运行页面下方
-        run: |
-          if [ -f report.md ]; then
-            cat report.md >> $GITHUB_STEP_SUMMARY
-          else
-            echo "Error: report.md was not generated!" && exit 1
-          fi
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
-      - name: Deploy Pages
-        # 这一步负责把生成的 index.html 发送到 gh-pages 分支，激活静态网页
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
-          publish_branch: gh-pages
+          path: '.' # Uploads the folder containing index.html
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
 
 
