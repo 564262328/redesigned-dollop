@@ -77,10 +77,66 @@ def run():
 # Create the formatted content first
     formatted_report = report.replace('# ', '<h1>').replace('## ', '<h2>').replace('\n', '<br>')
     
-# Then put it in the f-string
-    html_tpl = f"<html><body style='font-family:sans-serif;padding:20px;'>{formatted_report}</body></html>"
-    with open("index.html", "w", encoding="utf-8") as f:
-        f.write(html_tpl)
+# --- 1. 数据预处理 (确保这行最左侧没有空格) ---
+content = report.replace('#', '<h1 class="text-xl font-bold text-blue-400 mt-6 mb-2 flex items-center border-l-4 border-blue-600 pl-3">')
+content = content.replace('##', '<h2 class="text-lg font-semibold text-slate-300 mt-4 border-b border-slate-700 pb-1">')
+
+# 自动为关键指标着色
+content = content.replace('✅', '<span class="px-2 py-0.5 bg-green-900/50 text-green-400 rounded text-xs border border-green-700/50">优势 ✅</span>')
+content = content.replace('❌', '<span class="px-2 py-0.5 bg-red-900/50 text-red-400 rounded text-xs border border-red-700/50">风险 ❌</span>')
+content = content.replace('⚖️', '<span class="px-2 py-0.5 bg-slate-700/50 text-slate-300 rounded text-xs border border-slate-600/50">中性 ⚖️</span>')
+
+# 处理换行
+formatted_report = content.replace('\n', '<br>')
+
+# --- 2. 定义高级 Web 模板 ---
+html_tpl = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {{ background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%); min-height: 100vh; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }}
+        .glass-card {{ background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.3); }}
+        br {{ content: ""; margin: 0.5rem 0; display: block; }}
+    </style>
+</head>
+<body class="p-4 md:p-10">
+    <div class="max-w-3xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                    QUANT DASHBOARD
+                </h1>
+                <p class="text-slate-500 text-sm mt-1 font-medium italic">A股工业级量化看板 v7.0</p>
+            </div>
+            <div class="text-right">
+                <span class="text-xs bg-slate-800 text-slate-400 px-3 py-1 rounded-full border border-slate-700">
+                    🕒 {report.split('> 更新时间:')[1].split('\\n')[0] if '> 更新时间:' in report else 'Real-time'}
+                </span>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 md:p-8 leading-relaxed">
+            <div class="prose prose-invert max-w-none">
+                {formatted_report}
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-slate-600 text-xs tracking-widest uppercase">
+            Automated Strategy Execution • No Investment Advice
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+# --- 3. 写入文件 (确保这行与上面对齐，最左侧无空格) ---
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html_tpl)
+
     print("✅ 分析完成，文件已保存。")
 
 if __name__ == "__main__":
