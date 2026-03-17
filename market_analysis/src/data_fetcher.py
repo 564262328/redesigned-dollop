@@ -1,10 +1,7 @@
-# src/data_fetcher.py
 import akshare as ak
 import pandas as pd
-import requests
 import random
 import time
-from src.config import USER_AGENTS, TENCENT_URL
 
 def fetch_safe_ak(func):
     for _ in range(2):
@@ -15,11 +12,14 @@ def fetch_safe_ak(func):
         except: continue
     return pd.DataFrame()
 
-def fetch_tencent_enhanced(codes):
-    """腾讯增强数据源"""
-    try:
-        formatted = [("sh"+c if c.startswith("6") else "sz"+c) for c in codes[:10]]
-        resp = requests.get(f"{TENCENT_URL}{','.join(formatted)}", timeout=10)
-        # 解析逻辑... (同之前代码)
-        return pd.DataFrame(...) 
-    except: return pd.DataFrame()
+def fetch_multi_source_stock_data():
+    print("  [Layer 1] Trying EastMoney...")
+    df = fetch_safe_ak(ak.stock_zh_a_spot_em)
+    if not df.empty: return df
+
+    print("  [Layer 2] Trying Sina...")
+    df = fetch_safe_ak(ak.stock_zh_a_spot)
+    if not df.empty:
+        return df.rename(columns={'trade':'最新价', 'changepercent':'涨跌幅', 'code':'代码'})
+    
+    return pd.DataFrame()
