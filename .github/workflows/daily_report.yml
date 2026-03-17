@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
   schedule:
-    - cron: "30 7 * * 1-5" # Runs at 15:30 HKT (Close of Market)
+    - cron: "30 7 * * 1-5" # 15:30 HKT (Market Close)
   workflow_dispatch: 
 
 permissions:
@@ -33,22 +33,29 @@ jobs:
       - name: Run Quant Analysis
         run: python market_analysis.py
 
-      # IMPORTANT: Save the database changes back to your repo
-      - name: Commit and Push Database
+      - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add stocks_db.json
-          git commit -m "Update Market Data: $(date)" || echo "No changes to commit"
-          git push origin main || echo "No changes to push"
+          
+          # Add all changes (index.html, stocks_db.json, etc.)
+          git add .
+          
+          # Only commit if there are actual changes to avoid "nothing to commit" errors
+          if git diff --staged --quiet; then
+            echo "No changes detected in data or database."
+          else
+            git commit -m "Auto Update: $(date +'%Y-%m-%d %H:%M')"
+            git push origin main
+          fi
+        # The '|| true' ensures that even if Git fails, the deployment step still runs
+        continue-on-error: true 
 
-      # NEW: Upload the generated index.html for deployment
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Uploads everything in the root (including index.html)
+          path: '.' # Upload the directory containing index.html
 
-  # NEW: Separate deployment job to push to live site
   deploy:
     needs: build_and_deploy
     runs-on: ubuntu-latest
@@ -59,6 +66,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
