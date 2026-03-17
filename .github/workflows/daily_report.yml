@@ -4,10 +4,9 @@ on:
   push:
     branches: ["main"]
   schedule:
-    - cron: "30 7 * * 1-5" # Runs at 15:30 Beijing time on weekdays
-  workflow_dispatch: # Allows manual trigger
+    - cron: "30 7 * * 1-5" # 北京时间周一至周五 15:30 运行
+  workflow_dispatch: 
 
-# 🔑 IMPORTANT: Permissions for GitHub Pages
 permissions:
   contents: read
   pages: write
@@ -26,11 +25,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Matches your environment
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install pandas requests yfinance # Add other libs your script needs
+          # 关键：添加了 akshare，并建议升级 pip
+          python -m pip install --upgrade pip
+          pip install pandas requests yfinance akshare
 
       - name: Run Quant Analysis
         run: python market_analysis.py
@@ -41,11 +42,13 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Uploads the folder containing index.html
+          path: '.' # 包含生成的 index.html
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+
 
 
 
