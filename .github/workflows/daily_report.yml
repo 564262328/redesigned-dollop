@@ -1,4 +1,4 @@
-name: A-Share Quant Dashboard v14.1
+name: A-Share Quant Dashboard v14.2
 
 on:
   push:
@@ -48,6 +48,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
+
 
 
 
