@@ -77,16 +77,38 @@ def run():
 # Create the formatted content first
     formatted_report = report.replace('# ', '<h1>').replace('## ', '<h2>').replace('\n', '<br>')
     
-# --- 1. 数据预处理 (确保这行最左侧没有空格) ---
-content = report.replace('#', '<h1 class="text-xl font-bold text-blue-400 mt-6 mb-2 flex items-center border-l-4 border-blue-600 pl-3">')
-content = content.replace('##', '<h2 class="text-lg font-semibold text-slate-300 mt-4 border-b border-slate-700 pb-1">')
+import re
 
-# 自动为关键指标着色
+# --- 1. Data Preprocessing (A-Share Color Logic) ---
+# Define colors: Red for Positive/Up, Green for Negative/Down
+def color_stock_nums(text):
+    # Match percentages like +1.68% or 1.68% (Red)
+    text = re.sub(r'(\+?\d+\.\d+%)', r'<span class="text-red-500 font-bold font-mono">\1</span>', text)
+    # Match negative percentages like -1.68% (Green)
+    text = re.sub(r'(-\d+\.\d+%)', r'<span class="text-green-500 font-bold font-mono">\1</span>', text)
+    # Match stock points/prices (optional: color them amber/gold)
+    text = re.sub(r'(`\d+\.\d+`)', r'<span class="text-amber-400 font-mono font-bold">\1</span>', text)
+    return text
+
+update_time = 'Real-time'
+if '> 更新时间:' in report:
+    # 提取时间逻辑移出 f-string，避免反斜杠报错
+    try:
+        parts = report.split('> 更新时间:')
+        update_time = parts[1].split('\n')[0].strip()
+    except:
+        pass
+        
+# Apply replacements
+content = report.replace('#', '<h1 class="text-xl font-bold text-blue-400 mt-6 mb-2 border-l-4 border-blue-600 pl-3">')
+content = content.replace('##', '<h2 class="text-lg font-semibold text-slate-300 mt-4 border-b border-slate-700 pb-1">')
 content = content.replace('✅', '<span class="px-2 py-0.5 bg-green-900/50 text-green-400 rounded text-xs border border-green-700/50">优势 ✅</span>')
 content = content.replace('❌', '<span class="px-2 py-0.5 bg-red-900/50 text-red-400 rounded text-xs border border-red-700/50">风险 ❌</span>')
-content = content.replace('⚖️', '<span class="px-2 py-0.5 bg-slate-700/50 text-slate-300 rounded text-xs border border-slate-600/50">中性 ⚖️</span>')
 
-# 处理换行
+# Apply the A-Share color function
+content = color_stock_nums(content)
+
+# Final line breaks
 formatted_report = content.replace('\n', '<br>')
 
 # --- 2. 定义高级 Web 模板 ---
