@@ -74,7 +74,12 @@ def run():
     with open("report.md", "w", encoding="utf-8") as f:
         f.write(report)
     
-    html_tpl = f"<html><body style='font-family:sans-serif;padding:20px;'>{report.replace('# ', '<h1>').replace('## ', '<h2>').replace('\\n', '<br>')}</body></html>"
+# Create the formatted content first
+formatted_report = report.replace('# ', '<h1>').replace('## ', '<h2>').replace('\n', '<br>')
+
+# Then put it in the f-string
+html_tpl = f"<html><body style='font-family:sans-serif;padding:20px;'>{formatted_report}</body></html>"
+
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_tpl)
     print("✅ 分析完成，文件已保存。")
