@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
   schedule:
-    - cron: "30 7 * * 1-5"
+    - cron: "30 7 * * 1-5" # Runs at 15:30 HKT (Close of Market)
   workflow_dispatch: 
 
 permissions:
@@ -15,15 +15,12 @@ permissions:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # 🛡️ Increased to prevent 'Timeout reached'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1 # ⚡ Speed up by only fetching the latest commit
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,13 +33,22 @@ jobs:
       - name: Run Quant Analysis
         run: python market_analysis.py
 
-      # --- 关键新增步骤 1: 上传生成的 index.html 到 artifact ---
+      # IMPORTANT: Save the database changes back to your repo
+      - name: Commit and Push Database
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add stocks_db.json
+          git commit -m "Update Market Data: $(date)" || echo "No changes to commit"
+          git push origin main || echo "No changes to push"
+
+      # NEW: Upload the generated index.html for deployment
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # 告诉 GitHub 部署当前根目录下的 index.html
+          path: '.' # Uploads everything in the root (including index.html)
 
-  # --- 关键新增任务 2: 执行部署 ---
+  # NEW: Separate deployment job to push to live site
   deploy:
     needs: build_and_deploy
     runs-on: ubuntu-latest
@@ -53,6 +59,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
