@@ -1,4 +1,4 @@
-name: A-Share Quant Dashboard v7.0
+name: A-Share Quant Dashboard v13.1
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch: 
 
 permissions:
-  contents: write  # 🔑 必須改為 write 才能執行 git push
+  contents: write  # 🔑 關鍵：必須設為 write 才能讓 git push 成功
   pages: write
   id-token: write
 
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 確保獲取完整的歷史記錄以利於 git push
+          fetch-depth: 0 # 獲取完整歷史以利於 Git Push
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,18 +37,17 @@ jobs:
       - name: Run Quant Analysis
         run: python market_analysis.py
 
-      # 🔄 在部署網頁前，先將資料庫變更存回倉庫
+      # 🔄 將數據庫變更提交回倉庫 (確保對齊)
       - name: Commit Database Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # 檢查檔案是否存在，避免報錯
           if [ -f "stocks_db.json" ]; then
             git add stocks_db.json
             git commit -m "Update stock database: $(date)" || echo "No changes to commit"
             git push
           else
-            echo "stocks_db.json not found, skipping commit."
+            echo "stocks_db.json not found, skipping."
           fi
 
       - name: Setup Pages
@@ -57,12 +56,11 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # 包含 index.html 和更新後的 stocks_db.json
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
 
 
 
