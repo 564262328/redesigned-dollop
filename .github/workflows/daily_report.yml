@@ -1,10 +1,10 @@
-name: A-Share Quant Dashboard v13.3
+name: A-Share Quant Dashboard v14.0
 
 on:
   push:
     branches: ["main"]
   schedule:
-    - cron: "30 7 * * 1-5"  # Corrected: Added a dash (-) before 'cron'
+    - cron: "37 7 * * 1-5" 
   workflow_dispatch: 
 
 permissions:
@@ -15,12 +15,9 @@ permissions:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,30 +28,25 @@ jobs:
         run: pip install pandas akshare requests
 
       - name: Run Quant Analysis
-        run: python market_analysis.py
+        run: python main.py
 
       - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # Add all changes (index.html, stocks_db.json, etc.)
           git add .
-          
-          # Only commit if there are actual changes to avoid "nothing to commit" errors
           if git diff --staged --quiet; then
-            echo "No changes detected in data or database."
+            echo "No changes"
           else
-            git commit -m "Auto Update: $(date +'%Y-%m-%d %H:%M')"
+            git commit -m "Auto Update: $(date)"
             git push origin main
           fi
-        # The '|| true' ensures that even if Git fails, the deployment step still runs
         continue-on-error: true 
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # Upload the directory containing index.html
+          path: '.'
 
   deploy:
     needs: build_and_deploy
