@@ -170,18 +170,25 @@ def run():
     print("✅ 分析报表已生成。")
         # ... (Keep all your existing data fetching and report logic) ...
 
-    # 1. Generate Markdown (for GitHub Summary & Push)
-    with open("report.md", "w", encoding="utf-8") as f:
-        f.write(report)
+if __name__ == "__main__":
+   def run():
+    # ... 前面是获取数据和生成 report 字符串的代码 ...
     
-    # 2. Generate HTML (for Static Web Dashboard)
+    # 1. 确保 report 已经生成好了
+    report = f"# 📊 A股 AI 决策仪表盘\n"
+    report += f"### 🌡️ 市场热度分析\n..." # 此处省略你的 report 拼接代码
+
+    # 2. 【在此处插入修复代码】
+    # 先处理换行符，避开 f-string 限制
+    html_content = report.replace('# ', '<h1>').replace('### ', '<h3>').replace('**', '<b>').replace('\n', '<br>')
+
     html_template = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>A-Share AI Dashboard</title>
+        <title>A股 AI 决策仪表盘</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
         <style>
             body {{ box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }}
@@ -190,17 +197,18 @@ def run():
         </style>
     </head>
     <body class="markdown-body">
-        {report.replace('# ', '<h1>').replace('### ', '<h3>').replace('**', '<b>').replace('**', '</b>').replace('\n', '<br>')}
+        {html_content}
     </body>
     </html>
     """
+
+    # 3. 将结果写入文件（供 GitHub Actions 部署）
+    with open("report.md", "w", encoding="utf-8") as f:
+        f.write(report)
+        
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html_template)
-
+    
+    # 4. 最后推送提醒
     send_push(report)
-
-
-if __name__ == "__main__":
-    run()
-
-
+    print("✅ 分析报表与网页已生成。")
