@@ -36,27 +36,24 @@ jobs:
       - name: Run Quant Analysis
         run: python market_analysis.py
 
-      - name: Commit Database Changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          if [ -f "stocks_db.json" ]; then
-            git add stocks_db.json
-            git commit -m "DB Sync: $(date)" || echo "No changes"
-            git push
-          fi
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload Artifact
+      # --- 关键新增步骤 1: 上传生成的 index.html 到 artifact ---
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '.' # 告诉 GitHub 部署当前根目录下的 index.html
 
+  # --- 关键新增任务 2: 执行部署 ---
+  deploy:
+    needs: build_and_deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
