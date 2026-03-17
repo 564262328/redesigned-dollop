@@ -8,9 +8,9 @@ on:
   workflow_dispatch: 
 
 permissions:
-  contents: write  # 🔑 CRUCIAL: For git push
-  pages: write     # 🔑 CRUCIAL: For GitHub Pages
-  id-token: write  # 🔑 CRUCIAL: For GitHub Pages
+  contents: write  # 🔑 Required to save the JSON database back to your repo
+  pages: write     # 🔑 Required to publish the website
+  id-token: write  # 🔑 Required for secure deployment
 
 jobs:
   build_and_deploy:
@@ -37,7 +37,7 @@ jobs:
       - name: Run Quant Analysis
         run: python market_analysis.py
 
-      # 🔄 Save DB back to Repo
+      # 🔄 Save Database Changes back to Repo
       - name: Commit Database Changes
         run: |
           git config --local user.email "action@github.com"
@@ -54,11 +54,13 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          # Must be '.' to include index.html at the root
           path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
