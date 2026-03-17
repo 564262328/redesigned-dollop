@@ -171,19 +171,37 @@ def run():
         # ... (Keep all your existing data fetching and report logic) ...
 
 if __name__ == "__main__":
-   def run():
-       # ... after all your report += "..." logic ...
-
-    # CRITICAL: Ensure files are written before the script exits
+  def run():
+    now = datetime.now()
+    report = ""
+    html_template = ""
+    
     try:
-        with open("report.md", "w", encoding="utf-8") as f:
-            f.write(report)
+        print(f"🚀 Starting Analysis: {now}")
+        df, sectors, news, source = get_market_data()
         
-        # This creates the web version
+        # ... [Your existing report generation logic here] ...
+        # (Make sure 'report' and 'html_template' variables are fully built)
+        
+        # --- NEW: Safe HTML conversion logic ---
         html_content = report.replace('# ', '<h1>').replace('### ', '<h3>').replace('**', '<b>').replace('\n', '<br>')
-        with open("index.html", "w", encoding="utf-8") as f:
-            f.write(html_template) # Make sure html_template is defined as per previous step
-            
-        print("✅ Files generated successfully: report.md, index.html")
+        html_template = f"<html><body style='font-family:sans-serif;padding:20px;'>{html_content}</body></html>"
+
     except Exception as e:
-        print(f"❌ Failed to write files: {e}")
+        error_msg = f"❌ Analysis Failed at {now}: {str(e)}"
+        print(error_msg)
+        report = f"# ⚠️ Market Analysis Error\n\n{error_msg}"
+        html_template = f"<html><body><h1>Error</h1><p>{error_msg}</p></body></html>"
+
+    # --- CRITICAL: Always write files to avoid 'cat' error ---
+    with open("report.md", "w", encoding="utf-8") as f:
+        f.write(report)
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_template)
+    
+    print("✅ Process complete. Files saved.")
+
+# IMPORTANT: Ensure this is at the VERY BOTTOM of the file with NO indentation
+if __name__ == "__main__":
+    run()
+
