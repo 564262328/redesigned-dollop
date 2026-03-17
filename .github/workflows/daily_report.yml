@@ -1,40 +1,42 @@
-name: Industrial A-Share Analysis
-
+name: Industrial A-Share Web Dashboard
 on:
   schedule:
-    - cron: '25 1 * * 1-5' # 北京时间 09:25
+    - cron: '25 1 * * 1-5' # 09:25 AM Beijing Time
   workflow_dispatch:
 
 jobs:
-  analyze_job:
-    runs-on: ubuntu-22.04 
+  analyze_and_deploy:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write # Crucial for deploying to gh-pages
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libxml2-dev libxslt-dev
-          python -m pip install --upgrade pip setuptools wheel
-          pip install akshare>=1.18.40 pandas requests tenacity lxml html5lib py_mini_racer cryptography
-
+          pip install akshare>=1.18.40 pandas requests tenacity lxml html5lib
+          
       - name: Run Quant Engine
         env:
           SCKEY: ${{ secrets.SCKEY }}
         run: python market_analysis.py
 
-      - name: Report Summary
+      - name: Display Summary
         run: cat report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Deploy Dashboard to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./ 
+          publish_branch: gh-pages
+          # Only keep the dashboard on the web branch
+          exclude_assets: '.github,market_analysis.py,requirements.txt' 
 
 
