@@ -26,26 +26,23 @@ jobs:
         run: pip install pandas akshare requests
 
       - name: Run Quant Analysis
-        run: |
-          # Use find to locate main.py regardless of nesting
-          SCRIPT_PATH=$(find . -name "main.py" | head -n 1)
-          cd $(dirname $SCRIPT_PATH)
-          python main.py
+        # Ensure we run main.py from the root
+        run: python main.py
 
-      - name: Commit and Push
+      - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add .
-          git commit -m "Update $(date)" || echo "No changes"
+          git add stocks_db.json index.html
+          git commit -m "Auto-update market data: $(date)" || echo "No changes"
           git push origin main || echo "No changes"
         continue-on-error: true 
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # This finds where the index.html was actually generated
-          path: $(dirname $(find . -name "index.html" | head -n 1))
+          # Simple '.' means the root folder where index.html is
+          path: '.'
 
   deploy:
     needs: build_and_deploy
@@ -53,6 +50,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
+
 
 
 
