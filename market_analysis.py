@@ -168,6 +168,37 @@ def run():
     
     send_push(report)
     print("✅ 分析报表已生成。")
+        # ... (Keep all your existing data fetching and report logic) ...
+
+    # 1. Generate Markdown (for GitHub Summary & Push)
+    with open("report.md", "w", encoding="utf-8") as f:
+        f.write(report)
+    
+    # 2. Generate HTML (for Static Web Dashboard)
+    html_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>A-Share AI Dashboard</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
+        <style>
+            body {{ box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }}
+            @media (max-width: 767px) {{ body {{ padding: 15px; }} }}
+            .markdown-body {{ box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; }}
+        </style>
+    </head>
+    <body class="markdown-body">
+        {report.replace('# ', '<h1>').replace('### ', '<h3>').replace('**', '<b>').replace('**', '</b>').replace('\n', '<br>')}
+    </body>
+    </html>
+    """
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_template)
+
+    send_push(report)
+
 
 if __name__ == "__main__":
     run()
