@@ -1,4 +1,4 @@
-name: A-Share Quant Dashboard v14.0
+name: A-Share Quant Dashboard v14.1
 
 on:
   push:
@@ -25,23 +25,21 @@ jobs:
       - name: Install dependencies
         run: pip install pandas akshare requests
 
-      - name: Run Quant Analysis
-        # Ensure we run main.py from the root
+      - name: Run Analysis
         run: python main.py
 
-      - name: Commit and Push Changes
+      - name: Commit and Push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add stocks_db.json index.html
-          git commit -m "Auto-update market data: $(date)" || echo "No changes"
+          git commit -m "Auto update: $(date)" || echo "No changes"
           git push origin main || echo "No changes"
         continue-on-error: true 
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Simple '.' means the root folder where index.html is
           path: '.'
 
   deploy:
@@ -50,6 +48,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
+
 
 
 
