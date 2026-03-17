@@ -1,56 +1,85 @@
+import os
+import sys
 import pandas as pd
 import akshare as ak
 from datetime import datetime
 
-class StockResolver:
-    def __init__(self):
-        self.full_market = None
-        self.refresh_market_list()
+# --- 核心配置 ---
+TARGET_STOCKS = ["上证指数", "沪深300", "创业板指", "宁德时代", "贵州茅台"] # 你想分析的名称
+BIAS_LIMIT = 0.05  # 5% 乖离率风险预警
 
-    def refresh_market_list(self):
-        """抓取全 A 股实时清单（含代码、名称、最新价）"""
-        try:
-            # 抓取东财实时行情
-            df = ak.stock_zh_a_spot_em()
-            # 统一代码格式（如：600519 -> sh600519）
-            df['full_code'] = df['代码'].apply(lambda x: ('sh' + x) if x.startswith(('60', '68', '90')) else ('sz' + x))
-            self.full_market = df[['full_code', '代码', '名称', '最新价', '涨跌幅']]
-            print(f"✅ 成功抓取全市场清单，共 {len(self.full_market)} 只股票。")
-        except Exception as e:
-            print(f"❌ 抓取失败: {e}")
+def get_full_code(name_or_code):
+    """自动将名称/简码转换为带市场前缀的全码"""
+    try:
+        df = ak.stock_zh_a_spot_em()
+        match = df[df['名称'].str.contains(name_or_code)]
+        if not match.empty:
+            code = match.iloc[0]['代码']
+            name = match.iloc[0]['名称']
+            full_code = ('sh' + code) if code.startswith(('60', '68')) else ('sz' + code)
+            return full_code, name
+        return "sh000001", "上证指数" # 默认回退
+    except:
+        return "sh000001", "上证指数"
 
-    def suggest_stocks(self, keywords):
-        """
-        名称 -> 代码 解析逻辑
-        支持输入: "贵州茅台", "宁德时代", "腾讯" (如果是ADR/港股需调不同接口)
-        """
-        results = []
-        for kw in keywords:
-            # 模糊匹配名称
-            match = self.full_market[self.full_market['名称'].str.contains(kw)]
-            if not match.empty:
-                for _, row in match.iterrows():
-                    results.append({"name": row['名称'], "code": row['full_code']})
-            else:
-                # 如果输入的是纯代码，直接格式化
-                if kw.isdigit() and len(kw) == 6:
-                    results.append({"name": "未知/代码导入", "code": kw})
-        return results
+def analyze_logic(symbol, name):
+    """三段复盘核心逻辑"""
+    try:
+        # 获取日线 (支持指数和个股)
+        if 'sh000' in symbol or 'sz399' in symbol:
+            df = ak.stock_zh_index_daily(symbol=symbol).tail(30)
+        else:
+            df = ak.stock_zh_a_hist(symbol=symbol[2:], period="daily", adjust="qfq").tail(30)
+        
+        df.columns = ['date', 'open', 'close', 'high', 'low', 'volume', 'amount', 'outstanding'] if len(df.columns)==8 else df.columns
+        df['close'] = pd.to_numeric(df['close'])
+        
+        # 计算指标
+        ma5, ma10, ma20 = df['close'].rolling(5).mean().iloc[-1], df['close'].rolling(10).mean().iloc[-1], df['close'].rolling(20).mean().iloc[-1]
+        last_p = df['close'].iloc[-1]
+        
+        # 1. 技术面 (多头排列)
+        is_bull = ma5 > ma10 > ma20
+        # 2. 乖离率 (Bias)
+        bias = (last_p - ma20) / ma20
+        # 3. 精确买卖点 (支撑位)
+        buy_p, stop_p = round(ma20 * 0.99, 2), round(ma20 * 0.95, 2)
+        
+        status = "🟢 投入进攻" if is_bull and abs(bias) < BIAS_LIMIT else "⚖️ 均衡/防御"
+        
+        return f"""
+## 🔍 分析目标: {name} ({symbol})
+- **当前结论**: {status}
+- **技术面 (MA5/10/20)**: {'满足多头' if is_bull else '趋势整理'}
+- **乖离风险**: {'安全' if abs(bias)<BIAS_LIMIT else '风险(过高)'} (当前: {bias:.2%})
+### 🎯 操作清单
+- **建议买入点**: `{buy_p}` | **止损点**: `{stop_p}`
+- **检查项**: [趋势:{'✅' if is_bull else '❌'}] [乖离:{'✅' if abs(bias)<BIAS_LIMIT else '⚠️'}]
+"""
+    except Exception as e:
+        return f"## ❌ {name} 分析失败\n原因: {str(e)}\n"
 
-# --- 在 main 函数中使用 ---
-def run_main():
-    resolver = StockResolver()
+def run():
+    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    report = f"# 📊 A股工业级量化看板 v7.0\n> 更新时间: {now}\n\n"
     
-    # 场景 A: 手动输入名称（支持批量）
-    my_watchlist = ["宁德时代", "贵州茅台", "招商银行"]
+    # 遍历目标
+    for item in TARGET_STOCKS:
+        code, name = get_full_code(item)
+        report += analyze_logic(code, name)
     
-    # 场景 B: 或者直接抓取当前「涨幅榜」前 5 名进行分析（动态追踪热点）
-    hot_stocks = resolver.full_market.sort_values(by='涨跌幅', ascending=False).head(5)
-    watchlist = []
-    for _, row in hot_stocks.iterrows():
-        watchlist.append({"name": row['名称'], "code": row['full_code']})
+    report += "\n---\n*投资者参考，不构成投资建议。*\n"
+    
+    # --- 强制生成文件 (防止 Action 报错) ---
+    with open("report.md", "w", encoding="utf-8") as f:
+        f.write(report)
+    
+    html_tpl = f"<html><body style='font-family:sans-serif;padding:20px;'>{report.replace('# ', '<h1>').replace('## ', '<h2>').replace('\\n', '<br>')}</body></html>"
+    with open("index.html", "w", encoding="utf-8") as f:
+        f.write(html_tpl)
+    print("✅ 分析完成，文件已保存。")
 
-    print(f"🚀 即将分析以下目标: {[s['name'] for s in watchlist]}")
-    # 接下来的步骤：调用之前的 AShareQuantEngine(watchlist) 进行技术面分析...
+if __name__ == "__main__":
+    run()
 
 
