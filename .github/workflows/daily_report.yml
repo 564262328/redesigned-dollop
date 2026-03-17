@@ -1,48 +1,46 @@
-name: Industrial A-Share Web Dashboard
+name: A-Share Dashboard
 on:
   schedule:
-    - cron: '25 1 * * 1-5' # 09:25 AM Beijing Time
-  workflow_dispatch:
+    - cron: '25 1 * * 1-5' # 北京时间周一至周五 09:25 运行
+  workflow_dispatch:      # 允许手动触发按钮
 
 jobs:
-  analyze_and_deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write     # 必须开启写入权限，否则无法发布网页
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Dependencies
+      - name: Install Deps
         run: |
           pip install --upgrade pip
-          pip install akshare pandas requests tenacity lxml html5lib
-          
-      - name: Run Quant Engine
-        env:
-          SCKEY: ${{ secrets.SCKEY }}
-        run: python market_analysis.py
+          pip install akshare pandas requests
 
-      - name: Report Summary
+      - name: Run Script
+        run: python market_analysis.py  # 确保你的 Python 脚本也叫这个名字
+
+      - name: Upload Summary
+        # 这一步会将生成的报告直接显示在 GitHub Action 的运行页面下方
         run: |
           if [ -f report.md ]; then
             cat report.md >> $GITHUB_STEP_SUMMARY
           else
-            echo "# Error: File not found" >> $GITHUB_STEP_SUMMARY
+            echo "Error: report.md was not generated!" && exit 1
           fi
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy Pages
+        # 这一步负责把生成的 index.html 发送到 gh-pages 分支，激活静态网页
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ 
+          publish_dir: ./
           publish_branch: gh-pages
-          exclude_assets: '.github,market_analysis.py,README.md'
 
 
 
