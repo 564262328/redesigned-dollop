@@ -1,50 +1,53 @@
-import os
-import sys
-from datetime import datetime
+name: A-Share Quant Dashboard v14.2
 
-# Force Python to recognize the current directory for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch: 
 
-from src.database import load_db, save_db
-from src.data_fetcher import fetch_multi_source_stock_data
-from src.html_generator import build_dashboard
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 
-def run():
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
-    print(f"🚀 Quant System Start: {now_str}")
-    
-    # 1. Load historical database
-    db = load_db()
-    
-    # 2. Fetch current market data
-    df_a = fetch_multi_source_stock_data()
-    
-    # 3. Calculate new listings and update DB
-    new_count = 0
-    if not df_a.empty:
-        current_codes = [str(c) for c in df_a['代码'].tolist()]
-        old_codes = set(db.get("stock_list", []))
-        
-        if old_codes:
-            new_stocks = set(current_codes) - old_codes
-            new_count = len(new_stocks)
-            print(f"📈 New Stocks Found: {new_count}")
-        
-        db.update({
-            "last_update": now_str,
-            "total_count": len(current_codes),
-            "stock_list": current_codes
-        })
-        save_db(db)
-    else:
-        print("⚠️ No data fetched. Using placeholder for UI.")
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 4. Generate the Cyberpunk Web Terminal
-    build_dashboard(now_str, db, df_a, new_count)
-    print("✅ Build Finished. index.html created.")
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-if __name__ == "__main__":
-    run()
+      - name: Install dependencies
+        run: pip install pandas akshare requests
+
+      - name: Run Analysis
+        run: python main.py
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add stocks_db.json index.html
+          git commit -m "Auto update: $(date)" || echo "No changes"
+          git push origin main || echo "No changes"
+        continue-on-error: true 
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    needs: build_and_deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
 
 
 
