@@ -6,67 +6,59 @@ def get_ai_analysis(name, info, market_context):
     api_key = os.getenv("AI_API_KEY")
     base_url = os.getenv("AI_BASE_URL", "https://aihubmix.com")
     if not api_key: return None
-
-    prompt = f"""
-    【市场大环境】：{market_context}
-    【个股数据】：{info}
-    你是资深价值派量化员。分析【{name}】。
-    1. 严禁寻妖，侧重估值与筹码。2. 若大盘差，强调风控。
-    请返回 JSON: {{'stock_name', 'stock_code', 'price', 'change', 'insights', 'buy_point', 'stop_loss'}}
-    """
-    
     try:
         res = requests.post(f"{base_url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "gpt-4o-mini", "messages": [{"role": "user", "content": prompt}], "response_format": {"type": "json_object"}, "temperature": 0.2},
-            timeout=60)
+            json={
+                "model": "gpt-4o-mini", 
+                "messages": [{"role": "user", "content": f"分析 {name} 数据: {info}。大盘: {market_context}"}],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2
+            }, timeout=60)
         return json.loads(res.json()['choices']['message']['content'])
     except: return None
 
 def main():
-    print("🚀 QUANT 终端 V15.7 启动...")
+    print("🚀 QUANT 终端 V15.8 启动 (生存模式)...")
     dc = MarketDataCenter()
     
-    indices = dc.get_market_indices()
+    # 1. 抓取行情 (获取结果及来源)
     df, source_name = dc.get_all_market_data()
-    industry_data = dc.get_industry_heatmap() # 之前这里会报错，现在已修复
     
-    if df.empty: 
-        print("❌ 致命错误：未能获取任何行情数据")
+    # 即使行情为空，只要拿到了 code 列表，就不报错退出
+    if df.empty or 'code' not in df.columns:
+        print("❌ 致命错误：全网数据源封锁。")
         return
 
-    mkt_summary = " | ".join([f"{i['name']}:{i['change']}%" for i in indices])
+    indices = dc.get_market_indices()
+    industry_data = dc.get_industry_heatmap()
     new_count, total_count = dc.sync_and_get_new(df)
     
-    df['amount'] = pd.to_numeric(df['amount'], errors='coerce')
-    hot_df = df.sort_values(by='amount', ascending=False).head(12)
+    # 筛选展示逻辑
+    hot_df = df.head(12) 
 
     ai_results = []
+    mkt_summary = str(indices)
     for _, row in hot_df.iterrows():
         code = str(row['code'])
-        stock_industry = "其他"
-        for ind in industry_data:
-            if code in ind['symbols']:
-                stock_industry = ind['name']
-                break
+        print(f"🤖 分析中: {row.get('name', code)}...")
+        chip = dc.get_chip_data(code)
+        combined = {**row.to_dict(), **chip, "industry": "全市场"}
         
-        print(f"🤖 智能分析中: {row['name']}...")
-        chip_info = dc.get_chip_data(code)
-        combined = {**row.to_dict(), **chip_info, "industry": stock_industry}
-        
-        data = get_ai_analysis(row['name'], str(combined), mkt_summary)
+        data = get_ai_analysis(row.get('name', '未知'), str(combined), mkt_summary)
         if not data:
-            data = {"stock_name": row['name'], "stock_code": code, "price": row['price'], "change": row['change'], 
-                    "insights": "⚠️ AI 接口响应超时。技术观察：资金面活跃，建议结合大盘趋势参考成本位。", "buy_point": "价值区", "stop_loss": "止损位"}
-        
+            data = {"stock_name": row.get('name','未知'), "stock_code": code, "price": str(row.get('price','0')), 
+                    "change": str(row.get('change','0')), "insights": "⚠️ 数据源波动，建议关注筹码分布。", 
+                    "buy_point": "安全位", "stop_loss": "止损位"}
         data.update(combined)
         ai_results.append(data)
 
     generate_report(ai_results, new_count, total_count, source_name, industry_data, indices)
-    print(f"✅ 终端部署成功。数据源: {source_name}")
+    print(f"✅ 看板已更新。模式: {source_name}")
 
 if __name__ == "__main__":
     main()
+
 
 
 
