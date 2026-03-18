@@ -4,10 +4,11 @@ on:
   push:
     branches: [ "main", "master" ]
   schedule:
-    - cron: '*/20 * * * *' # 每 20 分鐘執行一次（配合你的緩存機制）
-  workflow_dispatch:
+    # 每 20 分鐘運行一次，配合代碼中的 20 分鐘緩存邏輯
+    - cron: '*/20 * * * *'
+  workflow_dispatch: # 支持手動點擊運行
 
-# 【核心權限】必須加入這兩行，否則第 5 步會報錯 Permission Denied
+# 核心權限配置：必須開啟以允許 Actions 提交代碼和部署 Pages
 permissions:
   contents: write
   pages: write
@@ -17,66 +18,80 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
+      # 1. 檢出代碼 (獲取完整歷史以支持 rebase 推送)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 獲取完整歷史以支持 push
+          fetch-depth: 0
 
+      # 2. 設置 Python 環境與緩存
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
+      # 3. 安裝量化與 AI 依賴
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install akshare pandas requests
+          pip install --prefer-binary akshare pandas requests
 
-      # ==========================================
-      # 4. 運行量化分析主程序（就在這裡插入）
-      # ==========================================
+      # 4. 運行量化分析主程序 (含智能緩存清理)
       - name: Run Market Analysis
         env:
+          # 必須在 GitHub Settings -> Secrets 中配置
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          # 設置 PYTHONPATH 讓 Python 找到 src 下的模組
           PYTHONPATH: ${{ github.workspace }}/market_analysis/src
         run: |
+          # --- [關鍵步驟] 智能清理壞緩存 ---
+          # 如果緩存文件包含佔位代碼 "000001" 或文件大小小於 2KB (說明數據不全)，則強制刪除
+          if [ -f "market_cache.json" ]; then
+            if grep -q "000001" market_cache.json || [ $(stat -c%s "market_cache.json") -lt 2048 ]; then
+              echo "🧹 檢測到損壞或佔位用的緩存數據，正在執行強制清理..."
+              rm -f market_cache.json
+            else
+              echo "✅ 緩存檢核通過，準備讀取。"
+            fi
+          fi
+
+          # 執行主程序生成新報告與緩存
           python market_analysis/src/main.py
 
-      # ==========================================
-      # 5. 提交變動並將緩存文件 Push 回倉庫（緊跟在運行之後）
-      # ==========================================
+      # 5. 提交並推送數據變動 (包含 index.html 和 market_cache.json)
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 只有文件存在時才 add，防止 128 報錯
+          # 只有文件存在時才 add，防止報錯
           [ -f "index.html" ] && git add index.html
           [ -f "market_cache.json" ] && git add market_cache.json
           
           if git diff --staged --quiet; then
             echo "✅ 今日數據與緩存均無變化，跳過推送。"
           else
-            git commit -m "🚀 自動更新：V15.8 PRO [多市場+緩存同步]"
+            git commit -m "🚀 自動更新：V15.8 PRO [同步數據與緩存]"
+            # 使用 rebase 避免 schedule 運行與手動 push 之間的衝突
             git pull --rebase origin ${GITHUB_REF_NAME}
             git push origin ${GITHUB_REF_NAME}
           fi
 
-      # ==========================================
-      # 6. 配置並部署到 GitHub Pages（最後步驟）
-      # ==========================================
+      # 6. 配置並部署到 GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' 
+          path: '.' # 部署倉庫根目錄下的 index.html
 
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
