@@ -1,17 +1,24 @@
-import akshare as ak
-import pandas as pd
+name: API Diagnostic Test
+on: 
+  workflow_dispatch: # 允許手動點擊運行
 
-def check(name, func):
-    try:
-        print(f"🔍 正在測試 {name}...")
-        df = func()
-        if df is not None and not df.empty:
-            print(f"✅ {name} 成功！獲取到 {len(df)} 筆數據。")
-        else:
-            print(f"⚠️ {name} 回傳數據為空。")
-    except Exception as e:
-        print(f"❌ {name} 失敗: {str(e)[:100]}")
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-print("--- 🚀 AkShare 接口連通性診斷 ---")
-check("東方財富 (EM)", ak.stock_zh_a_spot_em)
-check("新浪財經 (Sina)", ak.stock_zh_a_spot)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip' # 開啟緩存加速安裝
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --prefer-binary akshare pandas requests
+
+      - name: Run Diagnostic (EM/Sina/TX)
+        run: python debug_api.py # 執行剛才更新的診斷腳本
