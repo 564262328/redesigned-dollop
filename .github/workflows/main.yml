@@ -2,12 +2,12 @@ name: Quant Terminal Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ] # 兼容 main 或 master 分支
   schedule:
     - cron: '0 8 * * *'  # 每天北京时间下午 4:00 自动运行
   workflow_dispatch:      # 支持手动点击运行
 
-# 核心权限配置：必须开启写入权限，否则无法自动提交代码或发布网页
+# 核心权限配置
 permissions:
   contents: write
   pages: write
@@ -17,8 +17,7 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. 检出代码
-      # fetch-depth: 0 非常重要，否则 git pull --rebase 会因为缺少历史记录而报错
+      # 1. 检出代码 (获取完整历史记录以支持 rebase)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -40,19 +39,18 @@ jobs:
       - name: Run Market Analysis
         working-directory: ./market_analysis/src
         env:
-          # 请确保在 GitHub Settings -> Secrets 中已配置好这两项
+          # 请确保在 GitHub Settings -> Secrets -> Actions 中配置好这两项
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
         run: python main.py
 
       # 5. 提交并推送生成的 HTML 和 数据库
-      # 解决了 "Your index contains uncommitted changes" 报错
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 确保数据目录存在（防止初次运行报错）
+          # 确保数据目录存在
           mkdir -p market_analysis/data
           
           # 将生成的网页和数据库添加到暂存区
@@ -63,10 +61,14 @@ jobs:
           if git diff --staged --quiet; then
             echo "✅ 没有发现文件变动，跳过推送。"
           else
-            # 顺序：先 commit 本地更改，再 pull 远程更新，最后 push
+            # 顺序：先 commit 本地更改
             git commit -m "🚀 自动更新：部署量化看板 V14.6"
-            git pull --rebase origin main
-            git push origin main
+            
+            # 关键：动态获取当前分支并执行 rebase 拉取，防止 push 冲突
+            git pull --rebase origin ${GITHUB_REF_NAME}
+            
+            # 推送到远程仓库
+            git push origin ${GITHUB_REF_NAME}
           fi
 
       # 6. 配置并部署到 GitHub Pages
@@ -76,11 +78,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # 部署包含 index.html 的仓库根目录
+          path: '.' # 部署包含新版 index.html 的仓库根目录
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
