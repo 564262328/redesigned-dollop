@@ -3,9 +3,8 @@ import random
 import logging
 import pandas as pd
 import akshare as ak
-from typing import Optional, List, Dict
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MarketDataCenter")
 
@@ -17,63 +16,51 @@ class MarketDataCenter:
         ]
 
     def _enforce_rate_limit(self):
-        """Random sleep to avoid IP blocking"""
-        _time.sleep(random.uniform(0.8, 1.5))
+        _time.sleep(random.uniform(1.0, 2.0))
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def get_all_market_data(self):
-        """Fetch real-time A-share market data (Main loop in main.py)"""
+        """獲取實時行情，帶自動重試機制"""
         try:
-            logger.info("🌐 Fetching real-time market spot data...")
+            logger.info("🌐 正在獲取東財實時行情數據...")
             self._enforce_rate_limit()
             df = ak.stock_zh_a_spot_em()
             
-            # Map Chinese columns to English for main.py compatibility
-            column_map = {
-                "代码": "code", "名称": "name", "最新价": "price", 
-                "涨跌幅": "change", "成交量": "volume", "成交额": "amount"
-            }
+            if df is None or df.empty: raise ValueError("數據為空")
+
+            column_map = {"代碼": "code", "名稱": "name", "最新價": "price", "漲跌幅": "change"}
             df = df.rename(columns=column_map)
-            # Ensure price/change are numeric
-            df['price'] = pd.to_numeric(df['price'], errors='coerce')
-            df['change'] = pd.to_numeric(df['change'], errors='coerce')
+            # 強制轉換數值，填充空值
+            df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
+            df['change'] = pd.to_numeric(df['change'], errors='coerce').fillna(0)
             
-            return df[['code', 'name', 'price', 'change', 'volume', 'amount']], "EastMoney_Spot"
+            return df[['code', 'name', 'price', 'change']], "EastMoney_Live"
         except Exception as e:
-            logger.error(f"Failed to fetch market data: {e}")
-            return pd.DataFrame(), "Fallback_Source"
+            logger.warning(f"⚠️ 行情獲取失敗，嘗試重試: {e}")
+            raise e
 
     def get_market_indices(self):
-        """Get summary of major indices"""
         try:
             indices = ak.stock_zh_index_spot_em()
-            targets = ["上证指数", "深证成指", "创业板指"]
-            df_filtered = indices[indices['名称'].isin(targets)]
-            return df_filtered.to_dict(orient='records')
-        except:
-            return []
+            targets = ["上證指數", "深證成指", "創業板指"]
+            return indices[indices['名稱'].isin(targets)].to_dict(orient='records')
+        except: return []
 
     def get_industry_heatmap(self):
-        """Get top industry sectors"""
         try:
-            df = ak.stock_board_industry_name_em()
-            return df.head(10).to_dict(orient='records')
-        except:
-            return []
+            return ak.stock_board_industry_name_em().head(8).to_dict(orient='records')
+        except: return []
 
-    def sync_and_get_new(self, df: pd.DataFrame):
-        """Simulate syncing and counting new listings"""
-        total = len(df)
-        # Mock calculation for new stocks (e.g., Beijing stock exchange codes)
-        new_count = len(df[df['code'].str.startswith(('8', '4'))]) if not df.empty else 0
-        return new_count, total
+    def sync_and_get_new(self, df):
+        return len(df[df['code'].str.startswith(('8', '4'))]), len(df)
 
-    def get_chip_data(self, code: str):
-        """Get mock technical/chip data for a specific stock"""
+    def get_chip_data(self, code):
+        """模擬籌碼數據，可擴展 ak.stock_zh_a_hist_pre_job"""
         return {
-            "chip_status": random.choice(["Concentrated", "Dispersed", "Strong Support"]),
-            "rsi": random.randint(30, 75),
-            "turnover": f"{random.uniform(0.5, 5.0):.2f}%"
+            "chip_status": random.choice(["籌碼集中", "上方有壓", "主力洗盤"]),
+            "rsi": random.randint(30, 80)
         }
+
 
 
 
