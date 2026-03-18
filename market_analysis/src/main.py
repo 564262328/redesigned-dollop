@@ -1,111 +1,100 @@
 import os
 import json
-import time
-import random
+import requests
 import pandas as pd
-import akshare as ak
-from datetime import datetime
+from data_fetcher import fetch_multi_source_stock_data
+from html_generator import generate_report
 
-# --- CONFIGURATION ---
-DB_FILE = "stocks_db.json"
+def get_ai_analysis_report(stock_name, raw_data_str):
+    """
+    調用 DeepSeek API 進行金融大數據分析
+    """
+    api_key = os.environ.get('DEEPSEEK_API_KEY')
+    if not api_key:
+        print("❌ 錯誤: 未找到 DEEPSEEK_API_KEY 環境變量")
+        return None
 
-# --- DATABASE LOGIC ---
-def load_db():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except: pass
-    return {"last_update": "", "total_count": 0, "stock_list": []}
-
-def save_db(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
-
-# --- DATA FETCHING LOGIC ---
-def fetch_data():
-    print("  [Layer 1] Trying EastMoney...")
-    try:
-        time.sleep(random.uniform(3, 6))
-        df = ak.stock_zh_a_spot_em()
-        if df is not None and not df.empty: return df
-    except: pass
-
-    print("  [Layer 2] Trying Sina...")
-    try:
-        time.sleep(random.uniform(3, 6))
-        df = ak.stock_zh_a_spot()
-        if df is not None and not df.empty:
-            return df.rename(columns={'trade':'最新价', 'changepercent':'涨跌幅', 'code':'代码'})
-    except: pass
-    return pd.DataFrame()
-
-# --- UI GENERATION ---
-def build_html(now_str, db, df_a, new_count):
-    stocks_html = ""
-    if not df_a.empty:
-        df_a['涨跌幅'] = pd.to_numeric(df_a['涨跌幅'], errors='coerce')
-        top_12 = df_a.sort_values(by="涨跌幅", ascending=False).head(12)
-        for _, r in top_12.iterrows():
-            stocks_html += f"""
-            <div class="p-5 bg-slate-900/80 border border-white/5 rounded-2xl">
-                <div class="flex justify-between mb-2">
-                    <span class="text-white font-bold">{r['名称']}</span>
-                    <span class="text-[10px] text-slate-500 font-mono italic">{r['代码']}</span>
-                </div>
-                <div class="flex justify-between items-end">
-                    <span class="text-xl font-mono text-emerald-400">¥{r.get('最新价', 'N/A')}</span>
-                    <span class="text-xs font-bold text-red-500">+{r.get('涨跌幅', 0)}%</span>
-                </div>
-            </div>"""
+    url = "https://api.deepseek.com"
     
-    html = f"""
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"></script>
-    <style>body {{ background: #020617; color: #f8fafc; font-family: ui-sans-serif; font-style: italic; text-transform: uppercase; }}</style>
-</head>
-<body class="p-6 md:p-12 font-black">
-    <div class="max-w-6xl mx-auto">
-        <header class="flex justify-between border-b border-white/5 pb-10 mb-12">
-            <h1 class="text-4xl italic bg-clip-text text-transparent bg-gradient-to-br from-blue-400 to-emerald-400">QUANT TERMINAL v14.1</h1>
-            <div class="text-sm font-mono text-slate-300 bg-slate-900 px-4 py-2 rounded-xl border border-white/10">{now_str}</div>
-        </header>
-        <div class="grid grid-cols-2 gap-8 mb-12">
-            <div class="p-8 bg-blue-500/5 border border-blue-500/10 rounded-3xl text-center">
-                <div class="text-4xl mb-1">{db.get('total_count', 0)}</div><div class="text-[10px] text-slate-500">TOTAL STOCKS</div>
-            </div>
-            <div class="p-8 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl text-center">
-                <div class="text-4xl text-emerald-400">+{new_count}</div><div class="text-[10px] text-slate-500">NEW TODAY</div>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">{stocks_html}</div>
-    </div>
-</body>
-</html>"""
-    with open("index.html", "w", encoding="utf-8") as f: f.write(html)
+    # 這裡的 Prompt 決定了 AI 輸出的專業程度
+    prompt = f"""
+    你是資深 A 股量化策略分析師。請根據以下 {stock_name} 的最新數據進行深度解析。
+    數據來源：{raw_data_str}
+    
+    請嚴格返回以下 JSON 格式（不要包含任何 Markdown 標籤或額外文字）：
+    {{
+      "stock_name": "{stock_name}",
+      "stock_code": "從數據中提取代碼",
+      "price": "當前股價",
+      "change": "漲跌幅(含%)",
+      "insights": "150字內技術面分析(含支撐壓力位、籌碼分佈判斷)",
+      "buy_point": "具體數字(建議買入位)",
+      "stop_loss": "具體數字(建議止損位)",
+      "target_price": "具體數字(止盈目標)",
+      "sentiment_score": 0-100的整數,
+      "history": [
+        {{"name": "板塊熱度", "score": 75}},
+        {{"name": "大單資金", "score": 60}},
+        {{"name": "技術指標", "score": 45}}
+      ]
+    }}
+    """
 
-# --- MAIN RUNNER ---
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": "你是一個專業的金融分析 JSON 生成器。"},
+            {"role": "user", "content": prompt}
+        ],
+        "response_format": {"type": "json_object"}
+    }
+
+    try:
+        print(f"🤖 正在為 {stock_name} 請求 AI 大數據分析...")
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        return response.json()['choices']['message']['content']
+    except Exception as e:
+        print(f"❌ AI 分析請求失敗: {e}")
+        return None
+
 def main():
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
-    print(f"🚀 Quant System Start: {now_str}")
+    # 1. 抓取原始數據 (假設返回一個 DataFrame)
+    print("Step 1: 正在獲取市場實時數據...")
+    df = fetch_multi_source_stock_data()
     
-    db = load_db()
-    df_a = fetch_data()
+    if df.empty:
+        print("❌ 獲取數據失敗，請檢查網絡或 API 狀態")
+        return
+
+    # 2. 準備給 AI 的文本 (取前幾行關鍵數據，節省 Token)
+    # 這裡假設你的 DataFrame 有代碼和名稱列
+    stock_name = "中國石油" # 也可以從 df 中動態獲取
+    raw_data_summary = df.head(5).to_string()
+
+    # 3. 獲取 AI 分析結果
+    ai_json_str = get_ai_analysis_report(stock_name, raw_data_summary)
     
-    new_count = 0
-    if not df_a.empty:
-        current_codes = [str(c) for c in df_a['代码'].tolist()]
-        old_codes = set(db.get("stock_list", []))
-        if old_codes:
-            new_count = len(set(current_codes) - old_codes)
-        
-        db.update({"last_update": now_str, "total_count": len(current_codes), "stock_list": current_codes})
-        save_db(db)
-    
-    build_html(now_str, db, df_a, new_count)
-    print("✅ Build Finished. index.html created.")
+    if ai_json_str:
+        try:
+            # 4. 解析 AI 回傳的 JSON
+            report_data = json.loads(ai_json_str)
+            print("Step 3: AI 分析成功，準備渲染看板...")
+            
+            # 5. 調用你之前的 html_generator 生成 index.html
+            generate_report(report_data)
+            print("🚀 全部流程完成！你的 GitHub Pages 即將更新。")
+            
+        except json.JSONDecodeError:
+            print("❌ AI 回傳的數據格式不正確")
+    else:
+        print("❌ 無法生成 AI 報告")
 
 if __name__ == "__main__":
     main()
+
