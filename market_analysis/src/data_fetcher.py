@@ -9,54 +9,81 @@ logger = logging.getLogger("MarketDataCenter")
 
 class MarketDataCenter:
     def __init__(self):
-        self.ua_list = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-        ]
+        # 按行業分類的核心資產名單 (代碼: [名稱, 行業])
+        self.core_assets = {
+            # 數位科技與半導體
+            "000700": ["騰訊控股", "互聯網科技"], "300059": ["東方財富", "金融科技"], 
+            "002415": ["海康威視", "智能安防"], "002475": ["立訊精密", "消費電子"], 
+            "300408": ["三環集團", "電子元件"],
+            # 大消費 (白酒、家電、物流)
+            "600519": ["貴州茅台", "白酒龍頭"], "000858": ["五糧液", "白酒龍頭"], 
+            "000651": ["格力電器", "白色家電"], "000333": ["美的集團", "白色家電"], 
+            "600887": ["伊利股份", "乳製品"], "002352": ["順豐控股", "物流快遞"],
+            # 新能源與資源
+            "300750": ["寧德時代", "動力電池"], "002594": ["比亞迪", "新能源車"], 
+            "601012": ["隆基綠能", "光伏太陽能"], "601899": ["紫金礦業", "有色金屬"], 
+            "600900": ["長江電力", "綠色電力"], "601857": ["中國石油", "能源化工"],
+            # 大金融 (銀行、保險、證券)
+            "601318": ["中國平安", "保險金融"], "600036": ["招商銀行", "商業銀行"], 
+            "600030": ["中信證券", "證券券商"], "601398": ["工商銀行", "國有大行"], 
+            "601288": ["農業銀行", "國有大行"], "601939": ["建設銀行", "國有大行"],
+            # 生物醫療
+            "600276": ["恆瑞醫藥", "創新藥"], "603259": ["藥明康德", "醫藥外包"], 
+            "300015": ["愛爾眼科", "醫療服務"],
+            # 工業基建與房產
+            "601668": ["中國建築", "基礎建設"], "600048": ["保利發展", "地產開發"], 
+            "000002": ["萬科A", "地產開發"], "600585": ["海螺水泥", "建築材料"]
+        }
 
     def _enforce_rate_limit(self):
-        _time.sleep(random.uniform(1.5, 3.0))
+        """強化延遲策略，針對核心標的逐一抓取"""
+        _time.sleep(random.uniform(1.2, 2.8))
 
     def get_all_market_data(self):
-        """依序嘗試：東財 -> 新浪 -> 騰訊"""
+        """獲取數據：優先全市場，若封鎖則啟動 30 檔核心標的逐一突破"""
         
-        # --- 1. 東方財富 (精準但 GitHub IP 易被封) ---
+        # --- 策略 1: 嘗試全市場 (容易被斷連) ---
         try:
-            logger.info("🌐 [源1] 嘗試東方財富...")
+            logger.info("🌐 [策略1] 嘗試全市場實時掃描...")
             self._enforce_rate_limit()
             df = ak.stock_zh_a_spot_em()
             if df is not None and not df.empty:
                 df = df.rename(columns={"代碼": "code", "名稱": "name", "最新價": "price", "漲跌幅": "change"})
-                return self._clean_df(df), "EastMoney_Live"
+                # 為全市場匹配行業信息 (選填)
+                df['industry'] = "全市場掃描"
+                return self._clean_df(df), "EastMoney_FullScan"
         except Exception as e:
-            logger.warning(f"⚠️ 東財失效: {e}")
+            logger.warning(f"⚠️ 全市場接口封鎖: {e}")
 
-        # --- 2. 新浪財經 (傳統接口，通常對數據中心較友好) ---
-        try:
-            logger.info("🔄 [源2] 嘗試新浪財經...")
-            self._enforce_rate_limit()
-            df = ak.stock_zh_a_spot() 
-            if df is not None and not df.empty:
-                df = df.rename(columns={"symbol": "code", "name": "name", "trade": "price", "changepct": "change"})
-                df['code'] = df['code'].str.extract(r'(\d+)')
-                return self._clean_df(df), "Sina_Fallback"
-        except Exception as e:
-            logger.warning(f"⚠️ 新浪失效: {e}")
-
-        # --- 3. 騰訊財經 (穩定性高，適合作為最終保底) ---
-        try:
-            logger.info("🛡️ [源3] 嘗試騰訊財經...")
-            self._enforce_rate_limit()
-            # 騰訊 A 股實時行情接口
-            df = ak.stock_zh_a_spot_em() # 註：若特定環境需專用騰訊，可用 ak.stock_zh_a_hist_tx (需指定代碼)
-            # 在全市場獲取中，若 EM/Sina 皆斷連，此處改用騰訊特定的基礎數據轉換
-            df = ak.stock_info_a_code_name() # 獲取代碼名單作為最後保底，不含即時價
-            if df is not None and not df.empty:
-                df = df.rename(columns={"code": "code", "name": "name"})
-                df['price'], df['change'] = 0.0, 0.0
-                return df, "Tencent_Static_Fallback"
-        except Exception as e:
-            logger.error(f"❌ 所有行情源均已失效: {e}")
+        # --- 策略 2: 核心標的逐一突破 (GitHub 環境最穩方案) ---
+        logger.info("🛡️ [策略2] 啟動核心資產保底模式 (分板塊抓取)...")
+        fallback_results = []
+        
+        for code, info in self.core_assets.items():
+            name, industry = info[0], info[1]
+            try:
+                # 抓取日 K 線最新一筆，此接口特徵不明顯，不易被封
+                df_hist = ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq").tail(1)
+                
+                if not df_hist.empty:
+                    fallback_results.append({
+                        "code": code,
+                        "name": name,
+                        "industry": industry, # 加入行業標籤
+                        "price": float(df_hist['收盤'].iloc[0]),
+                        "change": float(df_hist['漲跌幅'].iloc[0])
+                    })
+                    logger.info(f"✅ [已獲取] {industry} | {name}")
+                
+                # 關鍵：逐筆請求必須拉長間隔
+                self._enforce_rate_limit()
+                
+            except Exception as e:
+                logger.error(f"❌ 抓取失敗 {name}: {e}")
+                continue
+        
+        if fallback_results:
+            return pd.DataFrame(fallback_results), "Tencent_Core_Asset_Backup"
             
         return pd.DataFrame(), "None"
 
@@ -64,12 +91,11 @@ class MarketDataCenter:
         df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
         df['change'] = pd.to_numeric(df['change'], errors='coerce').fillna(0)
         df['code'] = df['code'].astype(str)
-        return df[['code', 'name', 'price', 'change']]
+        return df[['code', 'name', 'price', 'change', 'industry']]
 
     def get_market_indices(self):
         try:
-            indices = ak.stock_zh_index_spot_em()
-            return indices[indices['名稱'].isin(["上證指數", "深證成指", "創業板指"])].to_dict(orient='records')
+            return ak.stock_zh_index_spot_em().to_dict(orient='records')
         except: return []
 
     def get_industry_heatmap(self):
@@ -77,11 +103,16 @@ class MarketDataCenter:
         except: return []
 
     def sync_and_get_new(self, df):
-        if df.empty: return 0, 0
-        return len(df[df['code'].str.startswith(('8', '4'))]), len(df)
+        return 0, len(df)
 
     def get_chip_data(self, code):
-        return {"chip_status": random.choice(["籌碼集中", "上方有壓", "主力洗盤", "低位支撐"]), "rsi": random.randint(30, 85)}
+        """基於代碼生成具備板塊特性的模擬籌碼"""
+        random.seed(code)
+        return {
+            "chip_status": random.choice(["主力高度控盤", "機構底部建倉", "籌碼換手充分", "高位震盪出貨"]),
+            "rsi": random.randint(35, 75)
+        }
+
 
 
 
