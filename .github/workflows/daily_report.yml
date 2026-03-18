@@ -1,55 +1,79 @@
-name: Quant Terminal Auto Deploy
+name: Quant Terminal AI Automation
 
 on:
   push:
     branches: [ "main" ]
   schedule:
-    - cron: '0 8 * * *' # 每天下午4点运行
-  workflow_dispatch:
+    - cron: '0 8 * * *'    # 每天北京时间下午 4:00 自动运行
+  workflow_dispatch:        # 支持手动点击运行测试
 
+# 核心权限配置：必须开启写入权限才能更新网页和提交代码
 permissions:
   contents: write
   pages: write
   id-token: write
 
 jobs:
-  build:
+  build_and_deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      # 1. 下载仓库代码
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      # 2. 设置 Python 环境
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install
+      # 3. 安装金融与 AI 所需依赖
+      - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install akshare pandas requests
-          if [ -f market_analysis/src/requirements.txt ]; then pip install -r market_analysis/src/requirements.txt; fi
+          if [ -f market_analysis/src/requirements.txt ]; then 
+            pip install -r market_analysis/src/requirements.txt
+          fi
 
-      - name: Run
+      # 4. 运行主程序 (注入 AIHubMix / ChatGPT 密钥)
+      - name: Run main script
         working-directory: ./market_analysis/src
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # 请确保已在 GitHub Settings -> Secrets -> Actions 中配置以下两项
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          # 兼容旧代码的 Key（如果 main.py 里还在用这个变量名）
+          DEEPSEEK_API_KEY: ${{ secrets.AI_API_KEY }} 
         run: python main.py
 
-      - name: Push HTML
+      # 5. 自动提交生成的 index.html 到仓库 (用于记录更新)
+      - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "update report" || exit 0
-          git push
+          if git diff --staged --quiet; then
+            echo "No data changes to commit"
+          else
+            git commit -m "Auto-update AI report: $(date +'%Y-%m-%d %H:%M')"
+            git push
+          fi
 
-      - name: Deploy Pages
+      # 6. 配置并部署到 GitHub Pages 网站
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
-      
-      - name: Finish Deploy
+          path: '.'  # 部署包含 index.html 的根目录
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
