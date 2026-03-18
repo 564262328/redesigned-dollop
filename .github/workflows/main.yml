@@ -4,13 +4,13 @@ on:
   push:
     branches: [ "main", "master" ]
   schedule:
-    # 北京时间周一至周五 09:30 (开盘数据同步)
+    # 每天北京時間 09:30 (開盤數據同步)
     - cron: '30 1 * * 1-5'
-    # 北京时间周一至周五 16:00 (盘后 AI 深度复盘)
+    # 每天北京時間 16:00 (盤後 AI 深度復盤)
     - cron: '0 8 * * 1-5'
-  workflow_dispatch: # 支持手动点击运行
+  workflow_dispatch: # 支持手動點擊運行
 
-# 核心权限配置
+# 核心權限配置：必須開啟以允許 Actions 提交代碼和部署 Pages
 permissions:
   contents: write
   pages: write
@@ -20,74 +20,71 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. 检出代码 (获取完整历史以支持 rebase 推送)
+      # 1. 檢出代碼 (獲取完整歷史以支持 rebase 推送)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2. 设置 Python 环境
+      # 2. 設置 Python 環境與緩存
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      # 3. 安装量化与 AI 依赖
+      # 3. 安裝量化與 AI 依賴 (強制更新 akshare 以應對接口封鎖)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install akshare pandas requests tenacity
+          pip install --prefer-binary akshare pandas requests
 
-      # 4. 运行量化分析主程序
+      # 4. 運行量化分析主程序
       - name: Run Market Analysis
-        working-directory: ./market_analysis/src
         env:
-          # 必须在 GitHub Settings -> Secrets 中配置以下两项
+          # 請在 GitHub Settings -> Secrets 中配置以下兩項
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
-        run: python main.py
-
-      # 5. 自动备份历史报告
-      - name: Archive Historical Report
+          # 核心配置：設置 PYTHONPATH 讓 Python 找到 src 下的模組
+          PYTHONPATH: ${{ github.workspace }}/market_analysis/src
         run: |
-          mkdir -p history_reports
-          # 备份当天的 HTML 报告
-          REPORT_DATE=$(date +'%Y-%m-%d')
-          cp index.html history_reports/report_${REPORT_DATE}.html
-          echo "✅ 历史报告已存档: report_${REPORT_DATE}.html"
+          # 從根目錄執行，確保 index.html 生成在根目錄
+          python market_analysis/src/main.py
 
-      # 6. 提交并推送数据变动
+      # 5. 提交並推送數據變動 (包含 index.html 和 歷史備份)
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 确保关键文件和文件夹被纳入版本管理
-          git add index.html
-          git add market_analysis/data/stocks_db.csv || true
-          git add history_reports/
+          # 備份當天報告到 history 資料夾 (可選)
+          mkdir -p history_reports
+          cp index.html history_reports/report_$(date +'%Y-%m-%d').html || true
+          
+          git add index.html history_reports/
           
           if git diff --staged --quiet; then
-            echo "✅ 今日数据无变化，跳过推送。"
+            echo "✅ 今日數據無變化，跳過推送。"
           else
-            # 顺序：提交 -> 拉取并合并 -> 推送
-            git commit -m "🚀 自动更新：部署 V15.5 实时版 [$(date +'%Y-%m-%d %H:%M')]"
+            git commit -m "🚀 自動更新：復盤看板 V15.8 [$(date +'%Y-%m-%d %H:%M')]"
+            # 使用 rebase 避免推送衝突
             git pull --rebase origin ${GITHUB_REF_NAME}
             git push origin ${GITHUB_REF_NAME}
           fi
 
-      # 7. 配置并部署到 GitHub Pages
+      # 6. 配置並部署到 GitHub Pages (讓報告可以透過網址直接訪問)
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # 部署仓库根目录下的 index.html
+          path: '.' # 部署倉庫根目錄下的 index.html
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
