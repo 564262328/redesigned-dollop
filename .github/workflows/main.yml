@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main", "master" ]
   schedule:
-    - cron: '*/20 * * * *' # 每 20 分鐘執行
+    - cron: '*/20 * * * *' # 每 20 分鐘更新
   workflow_dispatch:
 
 permissions:
@@ -41,10 +41,11 @@ jobs:
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
           TAVILLY_API_KEY: ${{ secrets.TAVILLY_API_KEY }}
-          # 💡 重要：PYTHONPATH 設為 market_analysis，匹配導入路徑
+          SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
+          # 💡 修正：將路徑設為 market_analysis 資料夾所在的起點
           PYTHONPATH: ${{ github.workspace }}/market_analysis
         run: |
-          # 1. 智能清理損壞或佔位的壞緩存
+          # 1. 智能清理損壞緩存
           if [ -f "market_cache.json" ]; then
             if grep -q "000001" market_cache.json || [ $(stat -c%s "market_cache.json") -lt 2048 ]; then
               echo "🧹 清理無效緩存..."
@@ -52,7 +53,7 @@ jobs:
             fi
           fi
 
-          # 2. 執行程序
+          # 2. 執行主程序
           python market_analysis/src/main.py
 
       - name: Commit and Push changes
@@ -60,13 +61,14 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 抓取所有變動 (index.html, market_cache.json)
+          # 抓取所有變動
           git add -A 
           
           if git diff --staged --quiet; then
-            echo "✅ 數據穩定，跳過推送。"
+            echo "✅ 無數據變動，跳過推送。"
           else
-            git commit -m "🚀 更新復盤數據 [V15.8 PRO]"
+            git commit -m "🚀 自動復盤：[2026-03-19] 市場動態更新"
+            # 使用 autostash 處理併發衝突
             git pull --rebase --autostash origin ${GITHUB_REF_NAME}
             git push origin ${GITHUB_REF_NAME}
           fi
@@ -77,11 +79,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' 
+          path: '.' # 部署根目錄下的 index.html
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
