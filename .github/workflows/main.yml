@@ -39,17 +39,18 @@ jobs:
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           PYTHONPATH: ${{ github.workspace }}/market_analysis/src
         run: |
-          # 1. 强制清理根目录旧文件，制造 Git 差异
+          # 1. 强制清理：删除根目录和 src 目录下的所有旧 index.html
           echo "🧹 清理旧报告..."
           rm -f ./index.html
+          rm -f market_analysis/src/index.html
           
-          # 2. 运行主程序
+          # 2. 运行程序
           python market_analysis/src/main.py
           
-          # 3. [双重保险] 如果根目录没生成，从 src 强行搬运
+          # 3. [保底搬运] 如果根目录没生成，从 src 目录暴力抓取
           if [ ! -f "./index.html" ]; then
-            echo "⚠️ 根目录未发现报告，尝试从 src 搬运..."
-            cp market_analysis/src/index.html ./index.html || echo "❌ 搬运失败"
+            echo "⚠️ 根目录没发现报告，尝试从 src 目录搬运..."
+            cp market_analysis/src/index.html ./index.html || echo "❌ 源码目录也找不到报告"
           fi
 
       - name: Commit and Push changes
@@ -57,19 +58,25 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 检查文件列表，确保 index.html 在根目录
+          # 检查根目录，确认 index.html 存在
+          echo "🔍 检查根目录文件列表:"
           ls -F
+          
+          if [ ! -f "index.html" ]; then
+            echo "❌ 致命错误：index.html 彻底失踪了！程序可能运行失败。"
+            exit 1
+          fi
           
           git add index.html
           
-          # 备份历史报告
+          # 备份历史 (可选)
           mkdir -p history_reports
           cp index.html history_reports/report_$(date +'%Y-%m-%d').html || true
           git add history_reports/
           
           if git diff --staged --quiet; then
-            echo "❌ 错误：Git 探测不到 index.html 变化，更新失败！"
-            exit 1
+            echo "⚠️ 今日数据无变化，更新终止。"
+            exit 1 # 强制报错，避免虚假成功
           else
             git commit -m "🚀 修复路径并部署 V15.8 [$(date +'%Y-%m-%d %H:%M')]"
             git pull --rebase origin ${GITHUB_REF_NAME}
@@ -87,6 +94,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
