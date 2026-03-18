@@ -1,24 +1,26 @@
-name: API Diagnostic Test
-on: 
-  workflow_dispatch: # 允許手動點擊運行
+import akshare as ak
+import pandas as pd
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+def check(name, func, **kwargs):
+    try:
+        print(f"🔍 正在測試 {name}...")
+        df = func(**kwargs)
+        if df is not None and not df.empty:
+            print(f"✅ {name} 成功！獲取到 {len(df)} 筆數據。")
+        else:
+            print(f"⚠️ {name} 回傳數據為空。")
+    except Exception as e:
+        print(f"❌ {name} 失敗: {str(e)[:120]}")
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip' # 開啟緩存加速安裝
+print("--- 🚀 AkShare 接口 (EM/Sina/TX) 連通性診斷 ---")
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install --prefer-binary akshare pandas requests
+# 測試東財
+check("東方財富 (EM)", ak.stock_zh_a_spot_em)
 
-      - name: Run Diagnostic (EM/Sina/TX)
-        run: python debug_api.py # 執行剛才更新的診斷腳本
+# 測試新浪
+check("新浪財經 (Sina)", ak.stock_zh_a_spot)
+
+# 測試騰訊 (使用個股歷史接口診斷)
+check("騰訊財經 (TX)", ak.stock_zh_a_hist_tx, symbol="sh600519")
+
+print("\n💡 診斷結束")
