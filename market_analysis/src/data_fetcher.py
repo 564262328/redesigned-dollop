@@ -1,116 +1,170 @@
-import akshare as ak
+import time as _time
+import random
+import logging
 import pandas as pd
-import os, random, time
-from tenacity import retry, stop_after_attempt, wait_exponential
+import akshare as ak
+from typing import Optional, List, Dict
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "data", "stocks_db.csv")
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("QuantDataCenter")
 
-class MarketDataCenter:
+class DataFetchError(Exception): pass
+class RateLimitError(DataFetchError): pass
+
+class OptimizedDataFetcher:
     def __init__(self):
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        self.local_db = self._load_db()
-
-    def _load_db(self):
-        if os.path.exists(DB_PATH):
-            try: return pd.read_csv(DB_PATH, dtype={'code': str})
-            except: pass
-        return pd.DataFrame(columns=['code', 'name', 'first_seen'])
-
-    def get_market_indices(self):
-        """抓取指数：东财 -> 新浪保底"""
-        try:
-            df = ak.stock_zh_index_spot_em()
-            if not df.empty:
-                target = {'000001':'上证','399001':'深证','399006':'创业板','000688':'科创50','000016':'上证50','000300':'沪深300'}
-                res = []
-                for _, r in df[df['代码'].isin(target.keys())].iterrows():
-                    res.append({"name": target[r['代码']], "price": r['最新价'], "change": r['涨跌幅'], "code": r['代码']})
-                return res
-        except: return []
-
-    def _clean_df(self, df, source):
-        """通用清洗：确保必有 code, name, price, change"""
-        if df.empty: return pd.DataFrame()
-        mapping = {
-            '代码': 'code', 'code': 'code', 'symbol': 'code',
-            '名称': 'name', 'name': 'name',
-            '最新价': 'price', 'trade': 'price',
-            '涨跌幅': 'change', 'changepercent': 'change'
+        self.ua_list = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        ]
+        # 熔断器：记录每个源的失效截至时间
+        self._circuit_breaker: Dict[str, float] = {}
+        # 标准列名映射表
+        self._column_map = {
+            "开盘": "open", "收盘": "close", "最高": "high", "最低": "low", 
+            "成交量": "volume", "成交额": "amount", "日期": "date", "涨跌幅": "pct_chg",
+            "open": "open", "close": "close", "high": "high", "low": "low", "volume": "volume", "amount": "amount"
         }
-        df = df.rename(columns=mapping)
-        # 强制提取 6 位数字代码
-        if 'code' in df.columns:
-            df['code'] = df['code'].astype(str).str.extract(r'(\d{5,6})')
-        return df
 
-    def get_all_market_data(self):
-        """四级跳生存抓取策略"""
-        # 1. 东方财富 (全数据)
+    def _get_headers(self) -> Dict[str, str]:
+        return {"User-Agent": random.choice(self.ua_list)}
+
+    def _enforce_rate_limit(self):
+        """2026 防封禁策略：智能随机休眠"""
+        _time.sleep(random.uniform(0.6, 1.4))
+
+    def _normalize_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """统一数据清洗引擎"""
+        if df is None or df.empty:
+            return pd.DataFrame()
+        
+        # 1. 列名标准化（模糊匹配）
+        df.columns = [self._column_map.get(col, col) for col in df.columns]
+        
+        # 2. 日期格式统一
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+            
+        # 3. 核心数值转换（确保float）
+        numeric_cols = ['open', 'close', 'high', 'low', 'volume', 'amount']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # 4. 计算涨跌幅 (若缺失)
+        if 'pct_chg' not in df.columns and 'close' in df.columns:
+            df['pct_chg'] = df['close'].pct_change() * 100
+            
+        return df.dropna(subset=['date', 'close'])
+
+    def _check_circuit(self, source_name: str) -> bool:
+        """检查熔断状态"""
+        if source_name in self._circuit_breaker:
+            if _time.time() < self._circuit_breaker[source_name]:
+                logger.warning(f"⚠️ [熔断] {source_name} 处于冷却期，自动跳过")
+                return False
+        return True
+
+    def _trigger_circuit(self, source_name: str):
+        """激活熔断 (冷却10分钟)"""
+        self._circuit_breaker[source_name] = _time.time() + 600
+        logger.error(f"🚨 [熔断激活] {source_name} 响应异常，已关断10分钟")
+
+    def fetch_stock_hist(self, stock_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        """策略模式：A股历史数据获取（含Fallback逻辑）"""
+        strategies = [
+            (self._fetch_em_hist, "东方财富"),
+            (self._fetch_sina_hist, "新浪财经"),
+            (self._fetch_tx_hist, "腾讯财经")
+        ]
+
+        last_error = None
+        for strategy_func, source_name in strategies:
+            if not self._check_circuit(source_name):
+                continue
+
+            try:
+                logger.info(f"🌐 [数据源] 正在尝试: {source_name} (代码: {stock_code})")
+                df = strategy_func(stock_code, start_date, end_date)
+                
+                if df is not None and not df.empty:
+                    logger.info(f"✅ [成功] 数据源: {source_name}")
+                    return self._normalize_data(df)
+                    
+            except Exception as e:
+                last_error = e
+                logger.warning(f"❌ [失败] {source_name}: {str(e)}")
+                # 如果检测到被限制，触发熔断
+                if "limit" in str(e).lower() or "banned" in str(e).lower():
+                    self._trigger_circuit(source_name)
+                continue
+
+        raise DataFetchError(f"所有渠道均无法获取数据。最后错误: {last_error}")
+
+    # --- 具体实现部分 ---
+
+    def _fetch_em_hist(self, code: str, start: str, end: str):
+        self._enforce_rate_limit()
+        return ak.stock_zh_a_hist(
+            symbol=code, period="daily",
+            start_date=start.replace('-', ''), end_date=end.replace('-', ''),
+            adjust="qfq"
+        )
+
+    def _fetch_sina_hist(self, code: str, start: str, end: str):
+        symbol = self._to_sina_tx_symbol(code)
+        self._enforce_rate_limit()
+        return ak.stock_zh_a_daily(
+            symbol=symbol,
+            start_date=start.replace('-', ''), end_date=end.replace('-', ''),
+            adjust="qfq"
+        )
+
+    def _fetch_tx_hist(self, code: str, start: str, end: str):
+        symbol = self._to_sina_tx_symbol(code)
+        self._enforce_rate_limit()
+        return ak.stock_zh_a_hist_tx(
+            symbol=symbol,
+            start_date=start.replace('-', ''), end_date=end.replace('-', ''),
+            adjust="qfq"
+        )
+
+    def fetch_etf_hist(self, code: str, start: str, end: str):
+        """获取ETF历史数据 (优化版)"""
         try:
-            print("🔍 [1/4] 尝试东方财富...")
-            df = ak.stock_zh_a_spot_em()
-            clean = self._clean_df(df, "EM")
-            if not clean.empty: return clean, "EastMoney"
-        except: pass
+            self._enforce_rate_limit()
+            df = ak.fund_etf_hist_em(
+                symbol=code, period="daily",
+                start_date=start.replace('-', ''), end_date=end.replace('-', ''),
+                adjustment="qfq"
+            )
+            return self._normalize_data(df)
+        except Exception as e:
+            logger.error(f"ETF获取异常: {e}")
+            return pd.DataFrame()
 
-        # 2. 腾讯接口 (高成功率备选)
+    def fetch_us_hist(self, code: str, start: str, end: str):
+        """获取美股历史数据 (EM源, 比腾讯更稳定)"""
         try:
-            print("🔍 [2/4] 尝试腾讯接口...")
-            # 抓取沪 A 和深 A (由于 akshare 封装不同，这里用通用 spot)
-            df = ak.stock_zh_a_spot_em() 
-            if not df.empty: return self._clean_df(df, "Tencent"), "Tencent"
-        except: pass
+            self._enforce_rate_limit()
+            df = ak.stock_us_hist(
+                symbol=code, period="daily",
+                start_date=start.replace('-', ''), end_date=end.replace('-', ''),
+                adjust="qfq"
+            )
+            return self._normalize_data(df)
+        except Exception as e:
+            logger.error(f"美股获取异常: {e}")
+            return pd.DataFrame()
 
-        # 3. 新浪接口
-        try:
-            print("🔍 [3/4] 尝试新浪财经...")
-            df = ak.stock_zh_a_spot()
-            if not df.empty: return self._clean_df(df, "Sina"), "Sina"
-        except: pass
-
-        # 4. 终极保底：基础代码表 (无价格但能运行)
-        try:
-            print("⚠️ [4/4] 启动生存模式：抓取基础代码表...")
-            df = ak.stock_info_a_code_name()
-            if not df.empty:
-                df = self._clean_df(df, "Basic")
-                df['price'] = "0.00"
-                df['change'] = "0.00"
-                return df, "Survival-Mode"
-        except: pass
-
-        return pd.DataFrame(), "None"
-
-    def get_industry_heatmap(self):
-        """抓取行业数据"""
-        try:
-            df = ak.stock_board_industry_name_em()
-            if not df.empty:
-                top = df.sort_values(by='涨跌幅', ascending=False).head(6)
-                return [{"name": r['板块名称'], "change": r['涨跌幅'], "symbols": []} for _, r in top.iterrows()]
-        except: pass
-        return []
-
-    def get_chip_data(self, symbol):
-        try:
-            df = ak.stock_cyq_em(symbol=symbol)
-            if not df.empty:
-                latest = df.iloc[-1]
-                return {"profit_ratio": f"{latest['获利比例']}%", "avg_cost": f"{latest['平均成本']:.2f}"}
-        except: pass
-        return {"profit_ratio": "--", "avg_cost": "--"}
-
-    def sync_and_get_new(self, current_df):
-        if current_df.empty or 'code' not in current_df.columns: return 0, len(self.local_db)
-        current_df['code'] = current_df['code'].astype(str)
-        new_stocks = current_df[~current_df['code'].isin(self.local_db['code'].astype(str))].copy()
-        if not new_stocks.empty:
-            new_stocks['first_seen'] = pd.Timestamp.now().strftime('%Y-%m-%d')
-            updated = pd.concat([self.local_db, new_stocks[['code', 'name', 'first_seen']]], ignore_index=True)
-            updated.drop_duplicates(subset=['code']).to_csv(DB_PATH, index=False)
-            return len(new_stocks), len(updated)
-        return 0, len(self.local_db)
+    @staticmethod
+    def _to_sina_tx_symbol(code: str) -> str:
+        """代码格式智能转换"""
+        if code.startswith('6'): return f"sh{code}"
+        if code.startswith('0') or code.startswith('3'): return f"sz{code}"
+        if code.startswith('4') or code.startswith('8'): return f"bj{code}"
+        return code
 
 
 
