@@ -1,81 +1,92 @@
-import time as _time
-import random
-import logging
+import time, os, json, random, logging
 import pandas as pd
 import akshare as ak
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MarketDataCenter")
 
 class MarketDataCenter:
-    def __init__(self):
-        # 熔斷狀態監控
+    def __init__(self, cache_file="market_cache.json"):
+        self.cache_file = cache_file
+        self.cache_duration = 20  # 20分鐘緩存
         self._circuit_breaker = {"TX": 0, "Sina": 0, "EM": 0}
 
-    def _enforce_rate_limit(self):
-        _time.sleep(random.uniform(1.5, 3.0))
+    def _get_cache(self):
+        """讀取本地緩存"""
+        if os.path.exists(self.cache_file):
+            try:
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    cache = json.load(f)
+                    last_time = datetime.fromisoformat(cache['timestamp'])
+                    if datetime.now() - last_time < timedelta(minutes=self.cache_duration):
+                        logger.info(f"⏳ 緩存有效 (生成於 {cache['timestamp']})，跳過 API 請求")
+                        return pd.DataFrame(cache['data'])
+            except: pass
+        return None
 
-    def get_all_market_data(self):
-        """三級避障策略：騰訊優先 -> 新浪備援 -> 離線保底"""
-        
-        # --- 策略 1: 騰訊財經 (診斷證明最穩定) ---
+    def _save_cache(self, df):
+        """保存數據至緩存"""
+        cache_data = {
+            "timestamp": datetime.now().isoformat(),
+            "data": df.to_dict(orient='records')
+        }
+        with open(self.cache_file, 'w', encoding='utf-8') as f:
+            json.dump(cache_data, f, ensure_ascii=False)
+
+    def fetch_all_markets(self):
+        """獲取 A股+港股+ETF 實時行情"""
+        cached_df = self._get_cache()
+        if cached_df is not None: return cached_df, "Local_Cache_Shared"
+
         try:
-            logger.info("🛡️ [策略1] 正在從騰訊雲端獲取數據...")
-            self._enforce_rate_limit()
-            # 獲取 A 股即時快照
-            df = ak.stock_zh_a_spot_em() 
-            if df is not None and not df.empty:
-                df = df.rename(columns={"代码": "code", "名称": "name", "最新价": "price", "涨跌幅": "change"})
-                return self._clean_df(df), "Tencent_Cloud"
+            logger.info("🌐 緩存失效，啟動全市場 API 同步 (A+HK+ETF)...")
+            
+            # 1. 抓取 A股 + ETF (東財接口)
+            df_a = ak.stock_zh_a_spot_em()
+            df_a = df_a.rename(columns={
+                "代码": "code", "名称": "name", "最新价": "price", "涨跌幅": "change",
+                "换手率": "turnover", "量比": "vol_ratio", "市盈率-动态": "pe",
+                "市净率": "pb", "总市值": "total_mv", "流通市值": "circ_mv"
+            })
+            
+            # 2. 抓取 港股 (東財接口)
+            df_hk = ak.stock_hk_spot_em()
+            df_hk = df_hk.rename(columns={
+                "代码": "code", "名称": "name", "最新价": "price", "涨跌幅": "change",
+                "换手率": "turnover", "量比": "vol_ratio", "市盈率-动态": "pe",
+                "市净率": "pb", "总市值": "total_mv", "流通市值": "circ_mv"
+            })
+
+            # 數據合併與標籤識別
+            df_full = pd.concat([df_a, df_hk], ignore_index=True)
+            df_full['market_tag'] = df_full['code'].apply(self._identify_market)
+            
+            # 數據清洗
+            for col in ['price', 'change', 'turnover', 'vol_ratio', 'pe', 'pb', 'total_mv', 'circ_mv']:
+                df_full[col] = pd.to_numeric(df_full[col], errors='coerce').fillna(0)
+
+            self._save_cache(df_full)
+            return df_full, "Live_API_Sync"
         except Exception as e:
-            logger.warning(f"⚠️ 騰訊源異常: {e}")
-            self._circuit_breaker["TX"] = 1
+            logger.error(f"❌ 同步失敗: {e}")
+            return pd.DataFrame(), "Sync_Error"
 
-        # --- 策略 2: 新浪財經 (備援源) ---
-        try:
-            logger.info("🔄 [策略2] 切換至新浪財經備援...")
-            self._enforce_rate_limit()
-            df = ak.stock_zh_a_spot()
-            if df is not None and not df.empty:
-                df = df.rename(columns={"symbol": "code", "name": "name", "trade": "price", "changepct": "change"})
-                df['code'] = df['code'].str.extract(r'(\d+)')
-                return self._clean_df(df), "Sina_Finance"
-        except Exception as e:
-            logger.warning(f"⚠️ 新浪源異常: {e}")
-            self._circuit_breaker["Sina"] = 1
-
-        # --- 策略 3: 離線保底 (防止程序崩潰導致 404) ---
-        logger.error("🚨 所有網絡源失效！啟動離線保底模式...")
-        backup = [
-            {"code": "600519", "name": "貴州茅台", "price": 1680.5, "change": 0.5, "industry": "白酒龍頭"},
-            {"code": "000700", "name": "騰訊控股", "price": 395.2, "change": -1.2, "industry": "互聯網"},
-            {"code": "300750", "name": "寧德時代", "price": 192.3, "change": 2.1, "industry": "新能源"}
-        ]
-        return pd.DataFrame(backup), "Offline_Safety_Backup"
-
-    def _clean_df(self, df):
-        df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
-        df['change'] = pd.to_numeric(df['change'], errors='coerce').fillna(0)
-        df['code'] = df['code'].astype(str)
-        if 'industry' not in df.columns: df['industry'] = "全市場動態"
-        return df[['code', 'name', 'price', 'change', 'industry']]
-
-    def get_market_indices(self):
-        try:
-            return ak.stock_zh_index_spot_em().to_dict(orient='records')
-        except:
-            return [{"名稱": "上證指數", "最新價": "3000+", "漲跌幅": "0.0"}]
-
-    def get_industry_heatmap(self):
-        try: return ak.stock_board_industry_name_em().head(6).to_dict(orient='records')
-        except: return []
-
-    def sync_and_get_new(self, df):
-        return 0, len(df)
+    def _identify_market(self, code):
+        c = str(code)
+        if c.startswith(('51', '52', '56', '58', '15', '16', '18')): return "ETF"
+        if len(c) == 5: return "港股"
+        return "A股"
 
     def get_chip_data(self, code):
-        """模擬籌碼數據"""
-        return {"chip_status": random.choice(["主力吸籌", "高位震盪", "多頭排列"]), "rsi": random.randint(30, 70)}
+        """模擬籌碼分佈數據 (獲利比例、平均成本、集中度)"""
+        random.seed(code)
+        return {
+            "profit_ratio": f"{random.uniform(30, 95):.1f}%",
+            "avg_cost": f"{random.uniform(5, 500):.2f}",
+            "chip_concentrate": f"{random.uniform(5, 18):.2f}%"
+        }
+
 
 
 
