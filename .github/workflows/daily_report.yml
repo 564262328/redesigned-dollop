@@ -1,10 +1,10 @@
-name: Financial Data Automation & Short URL Deploy
+name: Financial Data Automation & Pages Deploy
 
 on:
   push:
     branches: [ "main" ]
   schedule:
-    - cron: '0 8 * * *'    # 4:00 PM Beijing Time
+    - cron: '0 8 * * *'    # 每天北京时间下午4点运行
   workflow_dispatch:
 
 permissions:
@@ -38,12 +38,18 @@ jobs:
         working-directory: ./market_analysis/src
         run: python main.py
 
-      - name: Move HTML to root for shorter URL
+      - name: Prepare HTML for Pages
         run: |
-          # Change index.html to your actual filename if it is different
-          if [ -f market_analysis/src/index.html ]; then
-            cp market_analysis/src/index.html ./index.html
-            echo "Successfully moved index.html to root"
+          # 查找 src 目录下生成的任何 .html 文件并强制命名为根目录下的 index.html
+          # 注意：如果你的脚本生成的 HTML 叫别的名字，这行会自动处理它
+          find market_analysis/src -name "*.html" -exec cp {} ./index.html \;
+          
+          # 检查文件是否成功移动
+          if [ -f index.html ]; then
+            echo "Success: index.html is now in root."
+          else
+            echo "Error: No HTML file was found in market_analysis/src!"
+            exit 1
           fi
 
       - name: Commit and Push changes
@@ -54,7 +60,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Auto-update: New data & homepage $(date +'%Y-%m-%d %H:%M')"
+            git commit -m "Auto-update: New data & index.html $(date +'%Y-%m-%d %H:%M')"
             git push
           fi
 
@@ -64,7 +70,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'  # Deploys everything from the root folder
+          path: '.'  # 部署根目录（包含刚才移动过来的 index.html）
 
       - name: Deploy to GitHub Pages
         id: deployment
