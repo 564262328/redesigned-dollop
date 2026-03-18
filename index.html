@@ -1,284 +1,750 @@
 
     <!DOCTYPE html>
-    <html>
+    <html lang="zh-TW">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>QUANT PRO 終端系統</title>
         <style>
-            body { background:#131722; color:#d1d4dc; font-family:sans-serif; display:flex; }
-            .sidebar { width:220px; background:#1e222d; padding:20px; border-right:1px solid #363c4e; }
-            .main { flex:1; padding:20px; overflow-y:auto; }
-            .card { background:#1e222d; border-radius:8px; padding:15px; margin-bottom:15px; border:1px solid #363c4e; }
-            .tag { background:#2a2e39; padding:3px 8px; border-radius:4px; color:#1890ff; }
+            :root {
+                --bg-color: #0b0e11;
+                --card-bg: #151a21;
+                --border-color: #2b2f36;
+                --text-main: #eaecef;
+                --text-muted: #848e9c;
+                --primary: #c99400;
+            }
+            body {
+                background-color: var(--bg-color);
+                color: var(--text-main);
+                font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+                margin: 0;
+                display: flex;
+                height: 100vh;
+            }
+            /* 側邊欄 */
+            .sidebar {
+                width: 240px;
+                background: #151a21;
+                border-right: 1px solid var(--border-color);
+                padding: 25px;
+                display: flex;
+                flex-direction: column;
+            }
+            .logo { font-size: 20px; font-weight: bold; color: var(--primary); margin-bottom: 30px; display: flex; align-items: center; gap: 8px; }
+            .status-lamp { font-size: 12px; color: var(--text-muted); line-height: 2; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color); }
+
+            /* 主內容區 */
+            .main { flex: 1; overflow-y: auto; padding: 25px; }
+            
+            /* 頂部指數條 */
+            .index-bar {
+                display: flex; gap: 15px; margin-bottom: 30px; 
+                background: #1e2329; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);
+            }
+            .index-item { flex: 1; display: flex; justify-content: space-between; padding: 0 15px; border-right: 1px solid #2b2f36; }
+            .index-name { color: var(--text-muted); font-size: 12px; }
+            .index-val { font-weight: bold; font-size: 14px; }
+
+            /* 網格系統 */
+            .grid-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 20px;
+            }
+
+            /* 股票卡片樣式 */
+            .stock-card {
+                background: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                padding: 20px;
+                transition: transform 0.2s, border-color 0.2s;
+            }
+            .stock-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+            
+            .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+            .market-tag { font-size: 10px; color: white; padding: 1px 5px; border-radius: 3px; vertical-align: middle; margin-right: 5px; }
+            .stock-name { font-size: 18px; font-weight: bold; }
+            .stock-code { font-size: 12px; color: var(--text-muted); margin-left: 5px; }
+            
+            .stock-price { text-align: right; }
+            .price-val { font-size: 20px; font-weight: bold; }
+            .price-chg { font-size: 13px; font-weight: 500; }
+
+            .stats-bar {
+                display: flex; justify-content: space-between; 
+                background: #1e2329; padding: 8px 12px; border-radius: 6px;
+                font-size: 11px; color: var(--text-muted); margin-bottom: 15px;
+            }
+            .stats-bar b { color: var(--text-main); }
+
+            .ai-insight-box {
+                background: rgba(201, 148, 0, 0.05);
+                border-left: 3px solid var(--primary);
+                padding: 12px;
+                border-radius: 0 4px 4px 0;
+                margin-bottom: 15px;
+            }
+            .ai-label { font-size: 11px; font-weight: bold; color: var(--primary); margin-bottom: 5px; }
+            .ai-content { font-size: 13px; line-height: 1.6; color: #d1d4dc; }
+
+            .card-footer { display: flex; gap: 10px; border-top: 1px solid #2b2f36; padding-top: 12px; font-size: 12px; }
+            .strategy-tag { color: #ff9d00; font-weight: bold; }
+            .trend-tag { color: #1890ff; font-weight: bold; }
+
+            ::-webkit-scrollbar { width: 6px; }
+            ::-webkit-scrollbar-thumb { background: #2b2f36; border-radius: 10px; }
         </style>
     </head>
     <body>
         <div class="sidebar">
-            <h3>🚀 QUANT 終端</h3>
-            <p style="font-size:12px;">更新: 2026-03-18 19:02<br>源: Core_Asset_Backup</p>
-        </div>
-        <div class="main">
-            <h3>今日焦點 (20 檔)</h3>
+            <div class="logo">⚡ QUANT PRO</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 40px;">
+                更新: 2026-03-18 19:05:58<br>模式: Core_Asset_Backup
+            </div>
             
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>貴州茅台 (600519) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.2%)</span>
+            <div style="margin-bottom: 20px;">
+                <div style="font-size: 13px; color: var(--primary); margin-bottom: 15px;">📊 市場情緒熱度</div>
+                <div style="background:#1e2329; height:8px; border-radius:4px; overflow:hidden;">
+                    <div style="width:68%; background:var(--primary); height:100%;"></div>
+                </div>
+                <div style="text-align: center; margin-top: 10px; font-weight: bold;">68 - 貪婪</div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 20000.00 億 | 換手: 0.1%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+
+            <div class="status-lamp">
+                TX: 🟢<br>
+                Sina: 🟢<br>
+                Cache: 🔵
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="index-bar"></div>
+            <h2 style="font-size: 20px; margin-bottom: 25px;">今日精選深度分析 (共 20 檔)</h2>
+            <div class="grid-container">
+                
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">貴州茅台</span>
+                    <span class="stock-code">600519</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.2%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.1%</b></div>
+                <div class="stat-item">市值: <b>20000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 42</span>
             </div>
         </div>
         
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>騰訊控股 (00700) [港股]</b>
-                <span style="color:#52c41a; font-weight:bold;">100.0 (-0.5%)</span>
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#eb2f96">港股</span>
+                    <span class="stock-name">騰訊控股</span>
+                    <span class="stock-code">00700</span>
+                </div>
+                <div class="stock-price" style="color:#52c41a">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↓ -0.5%</div>
+                </div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 30000.00 億 | 換手: 0.3%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.3%</b></div>
+                <div class="stat-item">市值: <b>30000.00 億</b></div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>寧德時代 (300750) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (1.2%)</span>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 8000.00 億 | 換手: 1.5%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>滬深300ETF (510300) [ETF]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.1%)</span>
-            </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 2000.00 億 | 換手: 0.8%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 47</span>
             </div>
         </div>
         
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>小米集團-W (01810) [港股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (2.3%)</span>
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">寧德時代</span>
+                    <span class="stock-code">300750</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 1.2%</div>
+                </div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 5000.00 億 | 換手: 2.1%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>1.5%</b></div>
+                <div class="stat-item">市值: <b>8000.00 億</b></div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>阿里巴巴-W (09988) [港股]</b>
-                <span style="color:#52c41a; font-weight:bold;">100.0 (-1.1%)</span>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 18000.00 億 | 換手: 0.4%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>比亞迪 (002594) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.8%)</span>
-            </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 6000.00 億 | 換手: 1.2%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 60</span>
             </div>
         </div>
         
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>中國平安 (601318) [A股]</b>
-                <span style="color:#52c41a; font-weight:bold;">100.0 (-0.2%)</span>
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#722ed1">ETF</span>
+                    <span class="stock-name">滬深300ETF</span>
+                    <span class="stock-code">510300</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.1%</div>
+                </div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 9000.00 億 | 換手: 0.5%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.8%</b></div>
+                <div class="stat-item">市值: <b>2000.00 億</b></div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>創業板ETF (159915) [ETF]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.5%)</span>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 500.00 億 | 換手: 1.8%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>招商銀行 (600036) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.3%)</span>
-            </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 8000.00 億 | 換手: 0.3%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 69</span>
             </div>
         </div>
         
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>美團-W (03690) [港股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (1.5%)</span>
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#eb2f96">港股</span>
+                    <span class="stock-name">小米集團-W</span>
+                    <span class="stock-code">01810</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 2.3%</div>
+                </div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 7000.00 億 | 換手: 1.2%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>2.1%</b></div>
+                <div class="stat-item">市值: <b>5000.00 億</b></div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>東方財富 (300059) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (3.2%)</span>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 2000.00 億 | 換手: 4.5%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>中國石油 (601857) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.1%)</span>
-            </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 15000.00 億 | 換手: 0.1%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 68</span>
             </div>
         </div>
         
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>香港交易所 (00388) [港股]</b>
-                <span style="color:#52c41a; font-weight:bold;">100.0 (-0.4%)</span>
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#eb2f96">港股</span>
+                    <span class="stock-name">阿里巴巴-W</span>
+                    <span class="stock-code">09988</span>
+                </div>
+                <div class="stock-price" style="color:#52c41a">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↓ -1.1%</div>
+                </div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 4000.00 億 | 換手: 0.2%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.4%</b></div>
+                <div class="stat-item">市值: <b>18000.00 億</b></div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>納指ETF (513100) [ETF]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.8%)</span>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 300.00 億 | 換手: 2.5%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>長江電力 (600900) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.2%)</span>
-            </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 6000.00 億 | 換手: 0.2%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 39</span>
             </div>
         </div>
         
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>格力電器 (000651) [A股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.5%)</span>
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">比亞迪</span>
+                    <span class="stock-code">002594</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.8%</div>
+                </div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 2000.00 億 | 換手: 0.6%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>1.2%</b></div>
+                <div class="stat-item">市值: <b>6000.00 億</b></div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>隆基綠能 (601012) [A股]</b>
-                <span style="color:#52c41a; font-weight:bold;">100.0 (-2.1%)</span>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 1500.00 億 | 換手: 3.1%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>快手-W (01024) [港股]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (1.8%)</span>
-            </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 2000.00 億 | 換手: 2.5%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 62</span>
             </div>
         </div>
         
-        <div class="card">
-            <div style="display:flex; justify-content:space-between;">
-                <b>創業板50ETF (159949) [ETF]</b>
-                <span style="color:#ff4d4f; font-weight:bold;">100.0 (0.6%)</span>
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">中國平安</span>
+                    <span class="stock-code">601318</span>
+                </div>
+                <div class="stock-price" style="color:#52c41a">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↓ -0.2%</div>
+                </div>
             </div>
-            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 200.00 億 | 換手: 1.3%</div>
-            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
-            <div style="display:flex; gap:10px; font-size:12px;">
-                <span class="tag">策略: 觀望</span>
-                <span class="tag">預測: 盤整</span>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.5%</b></div>
+                <div class="stat-item">市值: <b>9000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 58</span>
             </div>
         </div>
         
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#722ed1">ETF</span>
+                    <span class="stock-name">創業板ETF</span>
+                    <span class="stock-code">159915</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.5%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>1.8%</b></div>
+                <div class="stat-item">市值: <b>500.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 66</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">招商銀行</span>
+                    <span class="stock-code">600036</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.3%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.3%</b></div>
+                <div class="stat-item">市值: <b>8000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 41</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#eb2f96">港股</span>
+                    <span class="stock-name">美團-W</span>
+                    <span class="stock-code">03690</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 1.5%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>1.2%</b></div>
+                <div class="stat-item">市值: <b>7000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 75</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">東方財富</span>
+                    <span class="stock-code">300059</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 3.2%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>4.5%</b></div>
+                <div class="stat-item">市值: <b>2000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 47</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">中國石油</span>
+                    <span class="stock-code">601857</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.1%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.1%</b></div>
+                <div class="stat-item">市值: <b>15000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 74</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#eb2f96">港股</span>
+                    <span class="stock-name">香港交易所</span>
+                    <span class="stock-code">00388</span>
+                </div>
+                <div class="stock-price" style="color:#52c41a">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↓ -0.4%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.2%</b></div>
+                <div class="stat-item">市值: <b>4000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 38</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#722ed1">ETF</span>
+                    <span class="stock-name">納指ETF</span>
+                    <span class="stock-code">513100</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.8%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>2.5%</b></div>
+                <div class="stat-item">市值: <b>300.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 36</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">長江電力</span>
+                    <span class="stock-code">600900</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.2%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.2%</b></div>
+                <div class="stat-item">市值: <b>6000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 38</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">格力電器</span>
+                    <span class="stock-code">000651</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.5%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>0.6%</b></div>
+                <div class="stat-item">市值: <b>2000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 53</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#1890ff">A股</span>
+                    <span class="stock-name">隆基綠能</span>
+                    <span class="stock-code">601012</span>
+                </div>
+                <div class="stock-price" style="color:#52c41a">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↓ -2.1%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>3.1%</b></div>
+                <div class="stat-item">市值: <b>1500.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 73</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#eb2f96">港股</span>
+                    <span class="stock-name">快手-W</span>
+                    <span class="stock-code">01024</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 1.8%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>2.5%</b></div>
+                <div class="stat-item">市值: <b>2000.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 56</span>
+            </div>
+        </div>
+        
+        <div class="stock-card">
+            <div class="card-header">
+                <div class="stock-title">
+                    <span class="market-tag" style="background:#722ed1">ETF</span>
+                    <span class="stock-name">創業板50ETF</span>
+                    <span class="stock-code">159949</span>
+                </div>
+                <div class="stock-price" style="color:#ff4d4f">
+                    <div class="price-val">100.0</div>
+                    <div class="price-chg">↑ 0.6%</div>
+                </div>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">PE: <b>0</b></div>
+                <div class="stat-item">換手: <b>1.3%</b></div>
+                <div class="stat-item">市值: <b>200.00 億</b></div>
+            </div>
+
+            <div class="ai-insight-box">
+                <div class="ai-label">🤖 AI 深度解析</div>
+                <div class="ai-content">數據正在計算中...</div>
+            </div>
+
+            <div class="card-footer">
+                <span class="strategy-tag">🎯 觀望</span>
+                <span class="trend-tag">📈 盤整</span>
+                <span class="rsi-tag">RSI: 42</span>
+            </div>
+        </div>
+        
+            </div>
         </div>
     </body>
     </html>
