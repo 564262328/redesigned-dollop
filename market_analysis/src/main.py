@@ -6,7 +6,6 @@ def get_ai_analysis(name, info):
     api_key = os.getenv("AI_API_KEY")
     base_url = os.getenv("AI_BASE_URL", "https://aihubmix.com")
     if not api_key: return None
-
     prompt = f"分析 A 股 {name} 数据及筹码: {info}。请返回 JSON: {{'stock_name', 'stock_code', 'price', 'change', 'insights', 'buy_point', 'stop_loss'}}"
     try:
         res = requests.post(f"{base_url.rstrip('/')}/chat/completions",
@@ -19,56 +18,56 @@ def get_ai_analysis(name, info):
     return None
 
 def main():
-    print("🚀 QUANT 终端 V14.9.1 启动 (KeyError 修复版)...")
+    print("🚀 QUANT 终端 V14.9.2 启动 (全兼容生存模式)...")
     dc = MarketDataCenter()
     
-    # 1. 抓取行情 (处理元组返回)
+    # 1. 抓取行情 (获取结果及来源)
     df, source_name = dc.get_all_market_data()
-    industry_data = dc.get_industry_heatmap()
     
-    # 安全检查：如果 DataFrame 连 code 列都没有，说明抓取彻底失败
+    # 如果所有源都彻底失败（连列表都没拿到），才报错
     if df.empty or 'code' not in df.columns:
-        print(f"❌ 严重错误: 数据抓取失败或格式错误 (来源: {source_name})")
+        print(f"❌ 严重错误: 所有数据源均不可用。")
         return
 
-    # 2. 安全同步新股
+    # 2. 同步新股
     new_count, total_count = dc.sync_and_get_new(df)
     
-    # 3. 筛选前 12 只活跃股
-    df['amount'] = pd.to_numeric(df['amount'], errors='coerce')
-    hot_df = df.sort_values(by='amount', ascending=False).head(12)
+    # 3. 行业数据 (不影响主流程)
+    industry_data = dc.get_industry_heatmap()
+    
+    # 4. 筛选热点（如果没有成交额字段，就随机选12个）
+    if 'amount' in df.columns and source_name != "Fallback-System":
+        df['amount'] = pd.to_numeric(df['amount'], errors='coerce')
+        hot_df = df.sort_values(by='amount', ascending=False).head(12)
+    else:
+        hot_df = df.head(12)
 
     ai_results = []
     for _, row in hot_df.iterrows():
         code = str(row['code'])
-        # 匹配板块标签
-        stock_industry = "其他"
-        for ind in industry_data:
-            if code in ind['symbols']:
-                stock_industry = ind['name']
-                break
+        print(f"🤖 分析中: {row.get('name', code)}...")
         
-        print(f"🤖 分析中: {row['name']}...")
         chip_info = dc.get_chip_data(code)
-        combined = {**row.to_dict(), **chip_info, "industry": stock_industry}
+        combined = {**row.to_dict(), **chip_info, "industry": "全市场"}
         
-        data = get_ai_analysis(row['name'], str(combined))
+        data = get_ai_analysis(row.get('name', '未知'), str(combined))
         if not data:
             data = {
-                "stock_name": row['name'], "stock_code": code, "price": str(row['price']), 
-                "change": str(row['change']), "insights": "⚠️ AI 网关繁忙。该股当前资金博弈激烈，建议关注板块联动效应。", 
+                "stock_name": row.get('name', '未知'), "stock_code": code, 
+                "price": str(row.get('price', '0')), "change": str(row.get('change', '0')),
+                "insights": "⚠️ 数据源不稳定，当前展示基础技术指标。请关注主力成本区。",
                 "buy_point": "盘中观察", "stop_loss": "参考5日线"
             }
-        
         data.update(combined)
         ai_results.append(data)
 
-    # 4. 生成报告
+    # 5. 生成报告
     generate_report(ai_results, new_count, total_count, source_name, industry_data)
-    print(f"✅ 任务成功完成！数据源: {source_name}, 股票总数: {total_count}")
+    print(f"✅ 看板更新成功！来源: {source_name}")
 
 if __name__ == "__main__":
     main()
+
 
 
 
