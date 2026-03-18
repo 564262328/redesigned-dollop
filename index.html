@@ -2,24 +2,32 @@
     <!DOCTYPE html>
     <html lang="zh-CN">
     <head>
-        <meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"></script>
-        <style>body { background: #020617; color: #f8fafc; font-family: ui-sans-serif; font-style: italic; text-transform: uppercase; }</style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            body { background: #020617; color: #f8fafc; font-family: ui-sans-serif; font-style: italic; text-transform: uppercase; }
+        </style>
     </head>
     <body class="p-6 md:p-12 font-black">
         <div class="max-w-6xl mx-auto">
             <header class="flex justify-between border-b border-white/5 pb-10 mb-12">
-                <h1 class="text-4xl italic bg-clip-text text-transparent bg-gradient-to-br from-blue-400 to-emerald-400">QUANT TERMINAL v14.1</h1>
-                <div class="text-sm font-mono text-slate-300 bg-slate-900 px-4 py-2 rounded-xl border border-white/10">2026-03-18 11:06</div>
+                <h1 class="text-4xl italic bg-clip-text text-transparent bg-gradient-to-br from-blue-400 to-emerald-400">QUANT TERMINAL v14.2</h1>
+                <div class="text-sm font-mono text-slate-300 bg-slate-900 px-4 py-2 rounded-xl border border-white/10">2026-03-18 11:55</div>
             </header>
+            
             <div class="grid grid-cols-2 gap-8 mb-12">
                 <div class="p-8 bg-blue-500/5 border border-blue-500/10 rounded-3xl text-center">
-                    <div class="text-4xl mb-1">4</div><div class="text-[10px] text-slate-500">ANALYZED STOCKS</div>
+                    <div class="text-4xl mb-1">4</div>
+                    <div class="text-[10px] text-slate-500 tracking-widest">ANALYZED STOCKS</div>
                 </div>
                 <div class="p-8 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl text-center">
-                    <div class="text-4xl text-emerald-400">+4</div><div class="text-[10px] text-slate-500">UP TODAY</div>
+                    <div class="text-4xl text-emerald-400">+2</div>
+                    <div class="text-[10px] text-slate-500 tracking-widest">UP TRENDS</div>
                 </div>
             </div>
-            <!-- 这里是注入点：把生成的卡片放进 grid 容器 -->
+
+            <!-- 卡片容器 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 
         <div class="p-6 bg-white/5 border border-white/10 rounded-3xl hover:border-blue-500/50 transition-all group">
@@ -29,23 +37,23 @@
                     <div class="text-[10px] text-slate-500 font-mono">bj920000</div>
                 </div>
                 <div class="text-right">
-                    <div class="text-lg font-black text-emerald-400">17.07</div>
-                    <div class="text-[10px] opacity-60 italic">+0.059%</div>
+                    <div class="text-lg font-black text-rose-500 font-mono">17.07</div>
+                    <div class="text-[10px] opacity-60 italic">0.059%</div>
                 </div>
             </div>
             <div class="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 mb-4">
                 <p class="text-[10px] leading-relaxed text-slate-300 italic lowercase">
-                    AI 分析建议：当前处于支撑位上方，建议分批建仓。
+                    技术面显示近期波动较大，建议关注支撑位表现。
                 </p>
             </div>
             <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">BUY</div>
-                    <div class="text-xs font-bold text-emerald-400">10.50</div>
+                    <div class="text-[8px] text-slate-500">BUY位</div>
+                    <div class="text-xs font-bold text-emerald-400 font-mono">观察中</div>
                 </div>
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">STOP</div>
-                    <div class="text-xs font-bold text-rose-400">9.80</div>
+                    <div class="text-[8px] text-slate-500">STOP位</div>
+                    <div class="text-xs font-bold text-rose-400 font-mono">止损参考5日线</div>
                 </div>
             </div>
         </div>
@@ -57,23 +65,23 @@
                     <div class="text-[10px] text-slate-500 font-mono">bj920001</div>
                 </div>
                 <div class="text-right">
-                    <div class="text-lg font-black text-emerald-400">17.88</div>
-                    <div class="text-[10px] opacity-60 italic">+0.619%</div>
+                    <div class="text-lg font-black text-rose-500 font-mono">17.88</div>
+                    <div class="text-[10px] opacity-60 italic">0.619%</div>
                 </div>
             </div>
             <div class="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 mb-4">
                 <p class="text-[10px] leading-relaxed text-slate-300 italic lowercase">
-                    AI 分析建议：当前处于支撑位上方，建议分批建仓。
+                    技术面显示近期波动较大，建议关注支撑位表现。
                 </p>
             </div>
             <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">BUY</div>
-                    <div class="text-xs font-bold text-emerald-400">10.50</div>
+                    <div class="text-[8px] text-slate-500">BUY位</div>
+                    <div class="text-xs font-bold text-emerald-400 font-mono">观察中</div>
                 </div>
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">STOP</div>
-                    <div class="text-xs font-bold text-rose-400">9.80</div>
+                    <div class="text-[8px] text-slate-500">STOP位</div>
+                    <div class="text-xs font-bold text-rose-400 font-mono">止损参考5日线</div>
                 </div>
             </div>
         </div>
@@ -85,23 +93,23 @@
                     <div class="text-[10px] text-slate-500 font-mono">bj920002</div>
                 </div>
                 <div class="text-right">
-                    <div class="text-lg font-black text-emerald-400">87.7</div>
-                    <div class="text-[10px] opacity-60 italic">+-0.137%</div>
+                    <div class="text-lg font-black text-emerald-500 font-mono">87.7</div>
+                    <div class="text-[10px] opacity-60 italic">-0.137%</div>
                 </div>
             </div>
             <div class="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 mb-4">
                 <p class="text-[10px] leading-relaxed text-slate-300 italic lowercase">
-                    AI 分析建议：当前处于支撑位上方，建议分批建仓。
+                    技术面显示近期波动较大，建议关注支撑位表现。
                 </p>
             </div>
             <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">BUY</div>
-                    <div class="text-xs font-bold text-emerald-400">10.50</div>
+                    <div class="text-[8px] text-slate-500">BUY位</div>
+                    <div class="text-xs font-bold text-emerald-400 font-mono">观察中</div>
                 </div>
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">STOP</div>
-                    <div class="text-xs font-bold text-rose-400">9.80</div>
+                    <div class="text-[8px] text-slate-500">STOP位</div>
+                    <div class="text-xs font-bold text-rose-400 font-mono">止损参考5日线</div>
                 </div>
             </div>
         </div>
@@ -113,23 +121,23 @@
                     <div class="text-[10px] text-slate-500 font-mono">bj920003</div>
                 </div>
                 <div class="text-right">
-                    <div class="text-lg font-black text-emerald-400">30.28</div>
-                    <div class="text-[10px] opacity-60 italic">+-1.368%</div>
+                    <div class="text-lg font-black text-emerald-500 font-mono">30.28</div>
+                    <div class="text-[10px] opacity-60 italic">-1.368%</div>
                 </div>
             </div>
             <div class="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 mb-4">
                 <p class="text-[10px] leading-relaxed text-slate-300 italic lowercase">
-                    AI 分析建议：当前处于支撑位上方，建议分批建仓。
+                    技术面显示近期波动较大，建议关注支撑位表现。
                 </p>
             </div>
             <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">BUY</div>
-                    <div class="text-xs font-bold text-emerald-400">10.50</div>
+                    <div class="text-[8px] text-slate-500">BUY位</div>
+                    <div class="text-xs font-bold text-emerald-400 font-mono">观察中</div>
                 </div>
                 <div class="bg-white/5 p-2 rounded-lg border border-white/5">
-                    <div class="text-[8px] text-slate-500">STOP</div>
-                    <div class="text-xs font-bold text-rose-400">9.80</div>
+                    <div class="text-[8px] text-slate-500">STOP位</div>
+                    <div class="text-xs font-bold text-rose-400 font-mono">止损参考5日线</div>
                 </div>
             </div>
         </div>
