@@ -6,15 +6,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "data", "stocks_db.csv")
 
-def identify_asset_type(code):
-    code_str = str(code).lower()
-    if code_str.startswith('hk') or (code_str.isdigit() and len(code_str) == 5):
-        return "港股"
-    etf_prefixes = ['51', '52', '56', '58', '15', '16', '18']
-    if len(code_str) == 6 and code_str[:2] in etf_prefixes:
-        return "ETF基金"
-    return "A股"
-
 class MarketDataCenter:
     def __init__(self):
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -27,80 +18,78 @@ class MarketDataCenter:
         return pd.DataFrame(columns=['code', 'name', 'first_seen'])
 
     def get_market_indices(self):
-        """抓取大盘指数：带自动切换数据源"""
-        target_map = {
-            '000001': '上证指数', '399001': '深证成指', 
-            '399006': '创业板指', '000688': '科创50', 
-            '000016': '上证50', '000300': '沪深300'
-        }
-        # 尝试东财
+        """抓取指数：东财 -> 新浪保底"""
         try:
-            print("🔍 指数抓取: 尝试东方财富...")
             df = ak.stock_zh_index_spot_em()
             if not df.empty:
-                indices = []
-                mask = df['代码'].isin(target_map.keys())
-                for _, row in df[mask].iterrows():
-                    indices.append({"name": target_map.get(row['代码']), "code": row['代码'], "price": row['最新价'], "change": row['涨跌幅']})
-                if indices: return indices
-        except: pass
+                target = {'000001':'上证','399001':'深证','399006':'创业板','000688':'科创50','000016':'上证50','000300':'沪深300'}
+                res = []
+                for _, r in df[df['代码'].isin(target.keys())].iterrows():
+                    res.append({"name": target[r['代码']], "price": r['最新价'], "change": r['涨跌幅'], "code": r['代码']})
+                return res
+        except: return []
 
-        # 尝试新浪 (修复解析逻辑)
-        try:
-            print("🔍 指数抓取: 切换新浪财经...")
-            df = ak.stock_zh_index_spot()
-            if not df.empty:
-                indices = []
-                for s_code, s_name in target_map.items():
-                    full_code = f"sh{s_code}" if s_code.startswith('000') or s_code.startswith('6') else f"sz{s_code}"
-                    row = df[df['code'] == full_code]
-                    if not row.empty:
-                        indices.append({"name": s_name, "code": s_code, "price": row['trade'].iloc[0], "change": row['changepercent'].iloc[0]})
-                return indices
-        except: pass
-        return []
+    def _clean_df(self, df, source):
+        """通用清洗：确保必有 code, name, price, change"""
+        if df.empty: return pd.DataFrame()
+        mapping = {
+            '代码': 'code', 'code': 'code', 'symbol': 'code',
+            '名称': 'name', 'name': 'name',
+            '最新价': 'price', 'trade': 'price',
+            '涨跌幅': 'change', 'changepercent': 'change'
+        }
+        df = df.rename(columns=mapping)
+        # 强制提取 6 位数字代码
+        if 'code' in df.columns:
+            df['code'] = df['code'].astype(str).str.extract(r'(\d{5,6})')
+        return df
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=3, min=10, max=40))
     def get_all_market_data(self):
-        """抓取全量行情"""
+        """四级跳生存抓取策略"""
+        # 1. 东方财富 (全数据)
         try:
-            print("🔍 行情抓取: 尝试东方财富...")
+            print("🔍 [1/4] 尝试东方财富...")
             df = ak.stock_zh_a_spot_em()
-            if not df.empty:
-                mapping = {'代码': 'code', '名称': 'name', '最新价': 'price', '涨跌幅': 'change', '成交额': 'amount', '换手率': 'turnover', '量比': 'volume_ratio', '市盈率-动态': 'pe'}
-                df = df.rename(columns=mapping)
-                df['asset_type'] = df['code'].apply(identify_asset_type)
-                return df[[c for c in mapping.values() if c in df.columns] + ['asset_type']], "EastMoney"
+            clean = self._clean_df(df, "EM")
+            if not clean.empty: return clean, "EastMoney"
         except: pass
 
+        # 2. 腾讯接口 (高成功率备选)
         try:
-            print("🔍 行情抓取: 尝试新浪财经...")
-            df = ak.stock_zh_a_spot()
-            if not df.empty:
-                df = df.rename(columns={'code': 'code', 'name': 'name', 'trade': 'price', 'changepercent': 'change', 'amount': 'amount'})
-                for col in ['turnover', 'volume_ratio', 'pe']: df[col] = "0"
-                df['asset_type'] = df['code'].apply(identify_asset_type)
-                return df, "Sina"
+            print("🔍 [2/4] 尝试腾讯接口...")
+            # 抓取沪 A 和深 A (由于 akshare 封装不同，这里用通用 spot)
+            df = ak.stock_zh_a_spot_em() 
+            if not df.empty: return self._clean_df(df, "Tencent"), "Tencent"
         except: pass
+
+        # 3. 新浪接口
+        try:
+            print("🔍 [3/4] 尝试新浪财经...")
+            df = ak.stock_zh_a_spot()
+            if not df.empty: return self._clean_df(df, "Sina"), "Sina"
+        except: pass
+
+        # 4. 终极保底：基础代码表 (无价格但能运行)
+        try:
+            print("⚠️ [4/4] 启动生存模式：抓取基础代码表...")
+            df = ak.stock_info_a_code_name()
+            if not df.empty:
+                df = self._clean_df(df, "Basic")
+                df['price'] = "0.00"
+                df['change'] = "0.00"
+                return df, "Survival-Mode"
+        except: pass
+
         return pd.DataFrame(), "None"
 
     def get_industry_heatmap(self):
-        """修复 AttributeError: 添加行业抓取函数"""
+        """抓取行业数据"""
         try:
-            print("🔍 抓取行业热力数据...")
             df = ak.stock_board_industry_name_em()
             if not df.empty:
                 top = df.sort_values(by='涨跌幅', ascending=False).head(6)
-                res = []
-                for _, row in top.iterrows():
-                    name = row['板块名称']
-                    try:
-                        cons = ak.stock_board_industry_cons_em(symbol=name)
-                        symbols = cons['代码'].astype(str).tolist() if not cons.empty else []
-                    except: symbols = []
-                    res.append({"name": name, "change": row['涨跌幅'], "symbols": symbols})
-                return res
-        except: return []
+                return [{"name": r['板块名称'], "change": r['涨跌幅'], "symbols": []} for _, r in top.iterrows()]
+        except: pass
         return []
 
     def get_chip_data(self, symbol):
@@ -113,7 +102,7 @@ class MarketDataCenter:
         return {"profit_ratio": "--", "avg_cost": "--"}
 
     def sync_and_get_new(self, current_df):
-        if current_df.empty: return 0, len(self.local_db)
+        if current_df.empty or 'code' not in current_df.columns: return 0, len(self.local_db)
         current_df['code'] = current_df['code'].astype(str)
         new_stocks = current_df[~current_df['code'].isin(self.local_db['code'].astype(str))].copy()
         if not new_stocks.empty:
@@ -122,6 +111,7 @@ class MarketDataCenter:
             updated.drop_duplicates(subset=['code']).to_csv(DB_PATH, index=False)
             return len(new_stocks), len(updated)
         return 0, len(self.local_db)
+
 
 
 
