@@ -1,77 +1,56 @@
-name: AI Financial Report Automation
+name: Quant Terminal Auto Deploy
 
 on:
   push:
     branches: [ "main" ]
   schedule:
-    - cron: '0 8 * * *'    # 每天北京时间下午4点自动运行
-  workflow_dispatch:        # 支持手动点击运行
+    - cron: '0 8 * * *' # 每天下午4点运行
+  workflow_dispatch:
 
-# 必须开启写入权限，否则无法自动提交代码或部署网页
 permissions:
   contents: write
   pages: write
   id-token: write
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      # 1. 检出代码
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 设置 Python 环境
-      - name: Set up Python 3.11
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 3. 安装依赖 (akshare, pandas, requests 等)
-      - name: Install dependencies
+      - name: Install
         run: |
-          python -m pip install --upgrade pip
-          if [ -f market_analysis/src/requirements.txt ]; then 
-            pip install -r market_analysis/src/requirements.txt
-          else
-            # 如果没有文件，默认安装核心库
-            pip install akshare pandas requests
-          fi
+          pip install akshare pandas requests
+          if [ -f market_analysis/src/requirements.txt ]; then pip install -r market_analysis/src/requirements.txt; fi
 
-      # 4. 运行主程序 (注入 DeepSeek API Key)
-      - name: Run main script
+      - name: Run
         working-directory: ./market_analysis/src
         env:
-          # 必须先在 GitHub Settings -> Secrets 中添加 DEEPSEEK_API_KEY
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: python main.py
 
-      # 5. 提交生成的 index.html 到仓库 (用于版本记录)
-      - name: Commit and Push
+      - name: Push HTML
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add index.html
-          if git diff --staged --quiet; then
-            echo "No changes in report"
-          else
-            git commit -m "Auto-update report: $(date +'%Y-%m-%d %H:%M')"
-            git push
-          fi
+          git commit -m "update report" || exit 0
+          git push
 
-      # 6. 部署到 GitHub Pages
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
+      - name: Deploy Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'  # 部署根目录下的 index.html
-
-      - name: Deploy to GitHub Pages
-        id: deployment
+          path: '.'
+      
+      - name: Finish Deploy
         uses: actions/deploy-pages@v4
+
 
 
 
