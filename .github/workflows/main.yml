@@ -35,19 +35,21 @@ jobs:
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
         run: python main.py
 
+      # --- 这里就是你刚才问的代码位置 ---
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 强制同步 index.html 和 数据库
+          # 确保同步 index.html 和 数据库
           git add index.html
           git add market_analysis/data/stocks_db.csv || true
           
           if git diff --staged --quiet; then
             echo "No changes found"
           else
-            git commit -m "🚀 部署量化看板 V14.6 (包含搜索与路径修正)"
+            git pull --rebase  # 关键：防止多人或多次运行冲突
+            git commit -m "🚀 部署量化看板 V14.6"
             git push
           fi
 
@@ -57,11 +59,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # 部署仓库根目录
+          path: '.' 
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
