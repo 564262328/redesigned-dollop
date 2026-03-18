@@ -4,85 +4,162 @@ from datetime import datetime
 def generate_report(data_list, new_count, total_count, source_name):
     cards_html = ""
     for s in data_list:
-        is_up = "-" not in str(s.get('change', ''))
-        color = "text-rose-500" if is_up else "text-emerald-500"
-        border = "border-rose-500/20" if is_up else "border-emerald-500/20"
+        # A股/港股习惯：涨红跌绿
+        change_val = str(s.get('change', '0'))
+        is_up = "-" not in change_val and change_val != "0"
+        color_theme = "rose" if is_up else "emerald"
         
-        # 类型标签颜色
+        # 资产类型颜色方案
         type_tag = s.get('asset_type', 'A股')
-        tag_style = "bg-blue-500/20 text-blue-400" # A股
-        if type_tag == "ETF基金": tag_style = "bg-purple-500/20 text-purple-400"
-        if type_tag == "港股": tag_style = "bg-orange-500/20 text-orange-400"
+        tag_colors = {
+            "ETF基金": "bg-purple-500/20 text-purple-400 border-purple-500/30",
+            "港股": "bg-orange-500/20 text-orange-400 border-orange-500/30",
+            "A股": "bg-blue-500/20 text-blue-400 border-blue-500/30"
+        }
+        tag_style = tag_colors.get(type_tag, tag_colors["A股"])
 
+        # 生成个股卡片
         cards_html += f"""
-        <div class="stock-card group p-6 bg-slate-900/40 border {border} rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">{s['stock_name']}</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase {tag_style}">{type_tag}</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        {s.get('raw_name', '未知')}
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">({s.get('stock_code')})</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border {tag_style} uppercase tracking-widest">{type_tag}</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#{s.get('industry', '全市场')}</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black {color} font-mono leading-none">{s['price']}</div>
-                    <div class="text-[10px] {color} font-bold mt-1">{s['change']}%</div>
+                    <div class="text-2xl font-black text-{color_theme}-500 font-mono leading-none tracking-tighter">{s.get('price')}</div>
+                    <div class="text-[10px] text-{color_theme}-500/80 font-black mt-1 italic">{s.get('change')}%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">{s['insights']}</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">{s['buy_point']}</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">{s.get('turnover', '--')}%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">{s['stop_loss']}</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">{s.get('volume_ratio', '--')}</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">{s.get('pe', '--')}</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    {s.get('insights', '分析模型正在接入大数据中...')}
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">{s.get('buy_point', '--')}</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">{s.get('stop_loss', '--')}</div>
                 </div>
             </div>
         </div>
         """
 
+    cur_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+    
     full_html = f"""
     <!DOCTYPE html>
     <html lang="zh-CN">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>QUANT 终端 V15.1</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <style>body {{ background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 100%); color: #f8fafc; font-family: system-ui; }}</style>
+        <style>
+            body {{ 
+                background: radial-gradient(circle at 50% 0%, #1a1c2e 0%, #020617 100%); 
+                color: #f8fafc; 
+                font-family: ui-sans-serif, system-ui, -apple-system;
+                min-height: 100vh;
+            }}
+            .terminal-text {{ text-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }}
+            @keyframes pulse-slow {{ 0%, 100% {{ opacity: 0.3; }} 50% {{ opacity: 1; }} }}
+        </style>
     </head>
     <body class="p-6 md:p-12">
         <div class="max-w-7xl mx-auto">
-            <header class="flex justify-between items-center border-b border-white/5 pb-10 mb-12">
+            <!-- 顶部导航栏 -->
+            <header class="flex justify-between items-end mb-16 border-b border-white/5 pb-10">
                 <div>
-                    <h1 class="text-3xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500">QUANT TERMINAL V15.0</h1>
-                    <p class="text-[10px] text-blue-500 font-mono uppercase tracking-[0.4em]">AI Asset Intelligence System</p>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_10px_#3b82f6]"></span>
+                        <h1 class="text-4xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500 terminal-text">QUANT 终端 <span class="text-blue-500">V15.1</span></h1>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-mono uppercase tracking-[0.4em] font-bold">人工智能大数据资产监控系统</p>
                 </div>
                 <div class="text-right">
-                    <div class="text-4xl font-black italic">{total_count}</div>
-                    <div class="text-[9px] text-slate-500 uppercase tracking-widest">Total Assets Tracked</div>
+                    <div class="text-5xl font-black italic text-white leading-none tracking-tighter">{total_count}</div>
+                    <p class="text-[9px] text-blue-500/60 font-black uppercase tracking-widest mt-2">全市场监控资产总数</p>
                 </div>
             </header>
 
+            <!-- 统计网格 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                <div class="bg-slate-900/40 backdrop-blur-md p-8 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
+                    <div class="text-4xl font-black mb-1 italic text-emerald-400">+{new_count}</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">今日发现新资产</div>
+                    <div class="absolute -right-4 -bottom-4 text-emerald-500/5 text-8xl font-black italic group-hover:scale-110 transition-transform">NEW</div>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md p-8 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
+                    <div class="text-4xl font-black mb-1 italic text-blue-400">{source_name.split(' ')[0]}</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">主路数据源状态</div>
+                    <div class="absolute -right-4 -bottom-4 text-blue-500/5 text-8xl font-black italic group-hover:scale-110 transition-transform">DATA</div>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md p-8 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
+                    <div class="text-4xl font-black mb-1 italic text-purple-400">GPT-4o</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">AI 决策引擎</div>
+                    <div class="absolute -right-4 -bottom-4 text-purple-500/5 text-8xl font-black italic group-hover:scale-110 transition-transform">AI</div>
+                </div>
+            </div>
+
+            <!-- 股票卡片网格 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                 {cards_html}
             </div>
 
-            <footer class="mt-20 border-t border-white/5 pt-10 text-[10px] text-slate-600 font-mono flex justify-between uppercase">
-                <div>Source: <span class="text-blue-400 font-bold">{source_name}</span></div>
-                <div>Sync Time: {datetime.now().strftime("%Y-%m-%d %H:%M")}</div>
+            <!-- 页脚 -->
+            <footer class="mt-24 border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] text-slate-600 font-mono uppercase tracking-[0.2em] font-bold">
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></span>
+                        <span>系统连接状态: 极佳</span>
+                    </div>
+                    <div>数据来源: <span class="text-blue-500">{source_name}</span></div>
+                </div>
+                <div>最后更新时间: {cur_time} (UTC+8)</div>
             </footer>
         </div>
     </body>
     </html>
     """
     
-    output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "index.html")
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    output_path = os.path.join(base_dir, "index.html")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(full_html)
+
 
 
 
