@@ -1,83 +1,80 @@
-import os
-from datetime import datetime
+import time as _time
+import random
+import logging
+import pandas as pd
+import akshare as ak
+from typing import Optional, List, Dict
 
-def generate_report(ai_results, new_count, total_count, source_name, industry_data, indices):
-    """
-    生成可视化 HTML 报告
-    """
-    # 获取当前时间
-    update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # 构造指数看板 HTML
-    index_html = ""
-    for idx in indices:
-        name = idx.get('名称', '未知')
-        price = idx.get('最新价', '0')
-        chg = idx.get('涨跌幅', '0%')
-        color = "red" if "+" in str(chg) or (isinstance(chg, (int, float)) and chg > 0) else "green"
-        index_html += f"<div style='margin-right:20px; color:{color}'><b>{name}</b>: {price} ({chg}%)</div>"
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("MarketDataCenter")
 
-    # 构造个股卡片 HTML
-    cards_html = ""
-    for res in ai_results:
-        color = "red" if float(str(res.get('change', 0)).replace('%','')) > 0 else "green"
-        cards_html += f"""
-        <div style="border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:15px; background:#f9f9f9;">
-            <h3 style="margin-top:0;">{res.get('stock_name')} ({res.get('stock_code')}) <span style="color:{color}">{res.get('change')}%</span></h3>
-            <p><b>🤖 AI 洞察:</b> {res.get('insights')}</p>
-            <div style="display:flex; justify-content:space-between; font-size:0.9em; color:#666;">
-                <span>🎯 买点: {res.get('buy_point')}</span>
-                <span>🛡️ 止损: {res.get('stop_loss')}</span>
-                <span>📊 筹码: {res.get('chip_status', '未知')}</span>
-            </div>
-        </div>
-        """
+class MarketDataCenter:
+    def __init__(self):
+        self.ua_list = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        ]
 
-    # 完整 HTML 模版
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>QUANT 终端行情报告</title>
-        <style>
-            body {{ font-family: sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 20px; color: #333; }}
-            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; }}
-            .mkt-summary {{ display: flex; background: #eee; padding: 10px; border-radius: 5px; margin: 20px 0; }}
-            .footer {{ font-size: 0.8em; color: #999; text-align: center; margin-top: 30px; }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>🚀 QUANT 智能看板</h1>
-            <div style="text-align:right">
-                <div>更新: {update_time}</div>
-                <div>来源: {source_name} | 总数: {total_count}</div>
-            </div>
-        </div>
+    def _enforce_rate_limit(self):
+        """Random sleep to avoid IP blocking"""
+        _time.sleep(random.uniform(0.8, 1.5))
 
-        <div class="mkt-summary">
-            {index_html}
-        </div>
+    def get_all_market_data(self):
+        """Fetch real-time A-share market data (Main loop in main.py)"""
+        try:
+            logger.info("🌐 Fetching real-time market spot data...")
+            self._enforce_rate_limit()
+            df = ak.stock_zh_a_spot_em()
+            
+            # Map Chinese columns to English for main.py compatibility
+            column_map = {
+                "代码": "code", "名称": "name", "最新价": "price", 
+                "涨跌幅": "change", "成交量": "volume", "成交额": "amount"
+            }
+            df = df.rename(columns=column_map)
+            # Ensure price/change are numeric
+            df['price'] = pd.to_numeric(df['price'], errors='coerce')
+            df['change'] = pd.to_numeric(df['change'], errors='coerce')
+            
+            return df[['code', 'name', 'price', 'change', 'volume', 'amount']], "EastMoney_Spot"
+        except Exception as e:
+            logger.error(f"Failed to fetch market data: {e}")
+            return pd.DataFrame(), "Fallback_Source"
 
-        <div>
-            <h2>🔥 热门个股 AI 分析 (Top {len(ai_results)})</h2>
-            {cards_html}
-        </div>
+    def get_market_indices(self):
+        """Get summary of major indices"""
+        try:
+            indices = ak.stock_zh_index_spot_em()
+            targets = ["上证指数", "深证成指", "创业板指"]
+            df_filtered = indices[indices['名称'].isin(targets)]
+            return df_filtered.to_dict(orient='records')
+        except:
+            return []
 
-        <div class="footer">
-            数据由 AkShare 提供 | AI 生成分析仅供参考，不构成投资建议。
-        </div>
-    </body>
-    </html>
-    """
+    def get_industry_heatmap(self):
+        """Get top industry sectors"""
+        try:
+            df = ak.stock_board_industry_name_em()
+            return df.head(10).to_dict(orient='records')
+        except:
+            return []
 
-    # 写入文件
-    report_path = "index.html"
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
-    
-    print(f"📄 报告已生成至: {os.path.abspath(report_path)}")
+    def sync_and_get_new(self, df: pd.DataFrame):
+        """Simulate syncing and counting new listings"""
+        total = len(df)
+        # Mock calculation for new stocks (e.g., Beijing stock exchange codes)
+        new_count = len(df[df['code'].str.startswith(('8', '4'))]) if not df.empty else 0
+        return new_count, total
+
+    def get_chip_data(self, code: str):
+        """Get mock technical/chip data for a specific stock"""
+        return {
+            "chip_status": random.choice(["Concentrated", "Dispersed", "Strong Support"]),
+            "rsi": random.randint(30, 75),
+            "turnover": f"{random.uniform(0.5, 5.0):.2f}%"
+        }
+
 
 
 
