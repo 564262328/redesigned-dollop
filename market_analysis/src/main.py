@@ -5,60 +5,72 @@ import time
 import requests
 import pandas as pd
 
-# 1. 核心路徑修正：確保能找到同級與上級模組
+# 強制將當前腳本所在目錄加入搜索路徑
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PARENT_DIR = os.path.dirname(CURRENT_DIR) # market_analysis
-PROJECT_ROOT = os.path.dirname(PARENT_DIR) # redesigned-dollop (根目錄)
+if CURRENT_DIR not in sys.path:
+    sys.path.append(CURRENT_DIR)
 
-# 將 market_analysis 加入路徑，方便導入 src.* 和 data_provider.*
-if PARENT_DIR not in sys.path:
-    sys.path.append(PARENT_DIR)
+# 導入同目錄下的檔案
+from data_fetcher import MarketDataCenter
+from html_generator import generate_report
 
-from src.analyzer import StockAnalyzer
-from src.reporter import ReportGenerator
-from data_provider.market_center import MarketDataCenter
+def get_ai_analysis(name, info):
+    api_key = os.getenv("AI_API_KEY")
+    base_url = os.getenv("AI_BASE_URL", "https://aihubmix.com").rstrip('/')
+    if not api_key: return None
+    try:
+        res = requests.post(f"{base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": "gpt-4o-mini", 
+                "messages": [{"role": "user", "content": f"分析股票 {name}: {info}。請輸出繁體中文 JSON: insights, buy_point, trend_prediction。"}],
+                "response_format": {"type": "json_object"}, "temperature": 0.2
+            }, timeout=45)
+        return json.loads(res.json()['choices']['message']['content'])
+    except: return None
 
 def main():
-    # 定義全局路徑
-    output_path = os.path.join(PROJECT_ROOT, "index.html")
-    cache_path = os.path.join(PROJECT_ROOT, "market_cache.json")
+    # --- 絕對路徑計算 (src -> market_analysis -> root) ---
+    project_root = os.path.dirname(os.path.dirname(CURRENT_DIR))
+    output_path = os.path.join(project_root, "index.html")
+    cache_path = os.path.join(project_root, "market_cache.json")
 
     print(f"🚀 QUANT Terminal V15.8 PRO 啟動...")
-    print(f"📍 項目根目錄: {PROJECT_ROOT}")
-    print(f"📍 緩存路徑: {cache_path}")
+    print(f"📍 緩存目標: {cache_path}")
+    
+    # 1. 獲取數據 (傳入緩存路徑)
+    dc = MarketDataCenter(cache_file=cache_path)
+    df, source = dc.fetch_all_markets()
+    
+    # 2. 挑選 20 檔標的 (漲幅前10 + 隨機10)
+    top_10 = df.sort_values(by='change', ascending=False).head(10)
+    remaining = df[~df['code'].isin(top_10['code'])]
+    others = remaining.sample(n=min(10, len(remaining)))
+    target_df = pd.concat([top_10, others]).head(20)
 
-    # 2. 初始化數據中心 (使用根目錄緩存)
-    dc = MarketDataCenter() # 確保您的 MarketDataCenter 內部使用了傳入的 Config 或 cache_path
-    df, source = dc.fetch_all() 
-
-    # 3. 獲取健康狀態 (根據您的 data_fetcher 邏輯)
-    health_status = {
-        "TX": "🟢", 
-        "Sina": "🟢", 
-        "Cache": "🔵" if "Cache" in source else "⚪"
-    }
-
-    # 4. 批量 AI 分析 (20 檔)
-    analyzer = StockAnalyzer()
-    ai_results = analyzer.batch_process(df, dc)
-
-    # 5. 生成美化報告
-    reporter = ReportGenerator()
-    try:
-        # 調用您的 ReportGenerator.render 方法
-        # 確保您的 render 方法接收 output_path 參數
-        reporter.render(ai_results, source, dc.get_market_indices())
+    # 3. 執行 AI 批量分析
+    ai_results = []
+    print(f"🤖 執行批量深度分析...")
+    for _, row in target_df.iterrows():
+        chip = dc.get_chip_data(row['code'])
+        combined = {**row.to_dict(), **chip}
         
-        # 強制將生成的文件從當前目錄移動到根目錄 (如果 reporter 沒寫對路徑的保險措施)
-        if not os.path.exists(output_path) and os.path.exists("index.html"):
-             os.rename("index.html", output_path)
-             
-        print(f"✅ 報告生成成功: {output_path}")
-    except Exception as e:
-        print(f"❌ 報告寫入失敗: {e}")
+        analysis = get_ai_analysis(row['name'], str(combined))
+        if not analysis:
+            analysis = {"insights": "數據正在掃描中...", "buy_point": "觀望", "trend_prediction": "盤整"}
+        
+        analysis.update(combined)
+        ai_results.append(analysis)
+        time.sleep(0.3)
+
+    # 4. 生成報告
+    health_status = {"TX": "🟢", "Sina": "🟢", "Cache": "🔵" if "Cache" in source else "⚪"}
+    generate_report(ai_results, 0, len(df), source, [], dc.get_market_indices(), output_path, health_status)
+    print(f"✅ 報告更新完成: {output_path}")
 
 if __name__ == "__main__":
     main()
+
 
 
 
