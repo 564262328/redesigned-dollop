@@ -4,13 +4,10 @@ on:
   push:
     branches: [ "main", "master" ]
   schedule:
-    # 北京時間 09:30 (開盤數據同步)
-    - cron: '30 1 * * 1-5'
-    # 北京時間 16:00 (盤後 AI 深度復盤)
-    - cron: '0 8 * * 1-5'
-  workflow_dispatch: # 支持手動點擊運行
+    - cron: '30 1 * * 1-5' # 北京时间 09:30
+    - cron: '0 8 * * 1-5'  # 北京时间 16:00
+  workflow_dispatch:
 
-# 核心權限配置：必須開啟以允許 Actions 提交代碼和部署 Pages
 permissions:
   contents: write
   pages: write
@@ -20,85 +17,77 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. 檢出代碼 (獲取完整歷史以支持 rebase 推送)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2. 設置 Python 環境與緩存
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      # 3. 安裝量化與 AI 依賴 (加入 tenacity 以支持 data_fetcher 的重試邏輯)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --prefer-binary akshare pandas requests tenacity
 
-      # 4. 運行量化分析主程序
       - name: Run Market Analysis
         env:
-          # 必須在 GitHub Settings -> Secrets 中配置
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
-          # 核心：讓 Python 導包時能找到同目錄下的 data_fetcher.py
           PYTHONPATH: ${{ github.workspace }}/market_analysis/src
         run: |
-          # [核心修正] 運行前先刪除根目錄舊的 index.html，確保 Git 偵測到「新增」變化
-          echo "🧹 清理舊文件..."
+          # 1. 强制清理根目录旧文件，制造 Git 差异
+          echo "🧹 清理旧报告..."
           rm -f ./index.html
           
-          # 執行腳本 (腳本內部會計算路徑並在根目錄生成新的 index.html)
+          # 2. 运行主程序
           python market_analysis/src/main.py
+          
+          # 3. [双重保险] 如果根目录没生成，从 src 强行搬运
+          if [ ! -f "./index.html" ]; then
+            echo "⚠️ 根目录未发现报告，尝试从 src 搬运..."
+            cp market_analysis/src/index.html ./index.html || echo "❌ 搬运失败"
+          fi
 
-      # 5. 提交並推送數據變動 (路徑調試與強制提交)
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # [調試] 檢查 index.html 是否真的生成在根目錄了
-          echo "🔍 檢查根目錄文件狀態:"
+          # 检查文件列表，确保 index.html 在根目录
           ls -F
-          
-          if [ ! -f "index.html" ]; then
-            echo "❌ 錯誤：index.html 沒在根目錄生成！檢查 main.py 路徑邏輯。"
-            exit 1
-          fi
           
           git add index.html
           
-          # 備份當天報告 (選填)
+          # 备份历史报告
           mkdir -p history_reports
           cp index.html history_reports/report_$(date +'%Y-%m-%d').html || true
           git add history_reports/
           
           if git diff --staged --quiet; then
-            echo "⚠️ 今日數據無變化，這不應該發生（因為我們剛刪除了舊文件）。"
-            exit 1 # 強制報錯，提醒路徑有誤
+            echo "❌ 错误：Git 探测不到 index.html 变化，更新失败！"
+            exit 1
           else
-            git commit -m "🚀 自動更新：復盤看板 V15.8 [$(date +'%Y-%m-%d %H:%M')]"
-            # 順序：拉取 -> 合併 -> 推送
+            git commit -m "🚀 修复路径并部署 V15.8 [$(date +'%Y-%m-%d %H:%M')]"
             git pull --rebase origin ${GITHUB_REF_NAME}
             git push origin ${GITHUB_REF_NAME}
           fi
 
-      # 6. 配置並部署到 GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # 部署根目錄下的 index.html
+          path: '.' # 部署根目录下的 index.html
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
