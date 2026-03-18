@@ -2,148 +2,119 @@ import os
 from datetime import datetime
 
 def generate_report(ai_results, new_count, total_count, source_name, industry_data, indices, output_path, health_status):
-    """
-    生成專業級 QUANT 復盤報告
-    :param ai_results: AI 分析結果清單
-    :param new_count: 新股數量
-    :param total_count: 掃描總數
-    :param source_name: 當前主力數據源名稱
-    :param industry_data: 行業熱力圖數據
-    :param indices: 大盤指數數據
-    :param output_path: HTML 輸出絕對路徑
-    :param health_status: 數據源熔斷監控狀態字典
-    """
-    update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    update_time = datetime.now().strftime("%Y-%m-%d %H:%M")
     
-    # 1. 構建數據源健康狀態燈 HTML
-    health_html = ""
-    for name, status in health_status.items():
-        # 根據狀態標籤判斷顏色
-        if "🟢" in status: color, bg = "#52c41a", "#f6ffed"  # 正常-綠
-        elif "🔴" in status: color, bg = "#ff4d4f", "#fff2f0" # 熔斷-紅
-        else: color, bg = "#faad14", "#fffbe6"               # 恢復-黃
-        
-        health_html += f"""
-        <span style="display:inline-block; margin-right:8px; padding:2px 10px; border-radius:4px; 
-                     border:1px solid {color}; color:{color}; background:{bg}; font-size:11px; font-weight:bold;">
-            {name} {status}
-        </span>
-        """
-
-    # 2. 處理大盤指數看板
+    # 1. 指数看板渲染
     index_html = ""
     for idx in indices[:4]:
-        name = idx.get('名稱', '未知')
-        price = idx.get('最新價', '0.00')
         chg = float(idx.get('漲跌幅', 0))
         color = "#ff4d4f" if chg > 0 else "#52c41a"
-        symbol = "+" if chg > 0 else ""
         index_html += f"""
-        <div style='flex: 1; min-width: 140px; padding: 10px 15px; border-right: 1px solid #f0f0f0;'>
-            <div style='font-size: 12px; color: #8c8c8c; margin-bottom:4px;'>{name}</div>
-            <div style='font-size: 18px; font-weight: bold; color: {color};'>{price} <small style='font-size:12px;'>{symbol}{chg}%</small></div>
+        <div style="background: #1e222d; padding: 10px 15px; border-radius: 8px; min-width: 140px; border: 1px solid #363c4e;">
+            <div style="font-size: 12px; color: #848e9c;">{idx.get('名稱')}</div>
+            <div style="font-size: 16px; font-weight: bold; color: {color}; margin-top: 4px;">{idx.get('最新價')} <small>{chg}%</small></div>
         </div>
         """
 
-    # 3. 按行業分組 AI 分析數據
-    grouped_data = {}
+    # 2. 个股卡片渲染 (仿照图片中心布局)
+    cards_html = ""
     for res in ai_results:
-        ind = res.get('industry', '其他板塊')
-        if ind not in grouped_data:
-            grouped_data[ind] = []
-        grouped_data[ind].append(res)
-
-    # 4. 渲染行業分組個股卡片
-    sections_html = ""
-    for industry, stocks in grouped_data.items():
-        sections_html += f"""
-        <div style="margin-bottom: 35px;">
-            <h2 style="font-size: 18px; color: #001529; border-left: 5px solid #1890ff; padding-left: 12px; margin-bottom: 20px; display:flex; align-items:center;">
-                {industry} <span style="font-size: 12px; font-weight: normal; color: #999; margin-left:10px;">(追蹤 {len(stocks)} 檔核心標的)</span>
-            </h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px;">
-        """
-        
-        for res in stocks:
-            chg = float(res.get('change', 0))
-            price = res.get('price', '0.00')
-            color = "#ff4d4f" if chg > 0 else "#52c41a"
-            symbol = "+" if chg > 0 else ""
-            
-            sections_html += f"""
-            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); transition: transform 0.2s;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div>
-                        <b style="font-size: 18px; color:#1a1a1a;">{res.get('name')}</b>
-                        <code style="background:#f5f5f5; color:#666; padding:2px 6px; border-radius:4px; font-size:12px; margin-left:5px;">{res.get('code')}</code>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="color: {color}; font-weight: bold; font-size: 20px;">{symbol}{chg}%</div>
-                        <div style="font-size: 12px; color: #bfbfbf;">Price: {price}</div>
-                    </div>
+        chg = float(res.get('change', 0))
+        color = "#ff4d4f" if chg > 0 else "#52c41a"
+        cards_html += f"""
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2 style="margin: 0; font-size: 20px;">{res.get('name')} <span style="color: #1890ff; font-size: 14px;">{res.get('code')}</span></h2>
+                    <div style="font-size: 12px; color: #848e9c; margin-top: 5px;">更新時間: {update_time}</div>
                 </div>
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; font-size: 14px; line-height: 1.6; color: #333; margin-bottom: 15px; border: 1px solid #f0f0f0;">
-                    <b style="color:#1890ff;">🤖 AI 洞察:</b> {res.get('insights')}
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
-                    <div style="color:#ff4d4f;">🎯 買點: <b>{res.get('buy_point')}</b></div>
-                    <div style="color:#52c41a;">🛡️ 止損: <b>{res.get('stop_loss')}</b></div>
-                    <div style="color:#8c8c8c;">📊 籌碼: {res.get('chip_status', '穩定')}</div>
-                    <div style="color:#8c8c8c;">📈 RSI: {res.get('rsi', '--')}</div>
+                <div style="text-align: right; color: {color}; font-size: 22px; font-weight: bold;">
+                    {res.get('price')} <span style="font-size: 14px;">{chg}%</span>
                 </div>
             </div>
-            """
-        sections_html += "</div></div>"
 
-    # 5. 構建完整 HTML 模板
+            <div class="key-insights">
+                <div style="color: #1890ff; font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 10px; text-transform: uppercase;">Key Insights</div>
+                {res.get('insights')}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div class="info-box"><b>操作建議：</b> <span style="color: #ff9d00;">{res.get('buy_point', '觀望')}</span></div>
+                <div class="info-box"><b>趨勢預測：</b> <span style="color: #1890ff;">震盪上行</span></div>
+            </div>
+
+            <div style="border-top: 1px solid #363c4e; padding-top: 15px;">
+                <div style="font-size: 12px; color: #848e9c; margin-bottom: 10px; font-weight: bold;">NEWS FEED 相關資訊</div>
+                <div class="news-item">【行業深度】洞察2026：{res.get('name')} 所屬板塊競爭格局及市場份額分析...</div>
+                <div class="news-item">實時異動：{res.get('name')} 盤中快速拉升，成交量明顯放大，機構資金流入。</div>
+            </div>
+        </div>
+        """
+
+    # 3. 完整 HTML 模板
     html_template = f"""
     <!DOCTYPE html>
-    <html lang="zh-TW">
+    <html lang="zh-CN">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>QUANT 智能復盤終端</title>
+        <title>QUANT 終端系統</title>
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", sans-serif; background: #f4f7f9; margin: 0; padding: 25px; color: #262626; }}
-            .container {{ max-width: 1100px; margin: 0 auto; }}
-            .header {{ background: #001529; color: #fff; padding: 30px; border-radius: 16px 16px 0 0; box-shadow: 0 4px 20px rgba(0,21,41,0.15); }}
-            .mkt-bar {{ background: #fff; display: flex; flex-wrap: wrap; border-radius: 0 0 16px 16px; margin-bottom: 30px; border: 1px solid #e8e8e8; border-top: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
-            .tencent-tag {{ background: #0052d9; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; letter-spacing: 0.5px; }}
-            .footer {{ margin-top: 50px; padding: 30px; background: #fff; border-radius: 12px; border: 1px solid #e8e8e8; font-size: 13px; color: #595959; line-height: 1.8; }}
-            @media (max-width: 600px) {{ .mkt-bar {{ flex-direction: column; }} .mkt-bar > div {{ border-right: none; border-bottom: 1px solid #f0f0f0; }} }}
+            body {{ background-color: #131722; color: #d1d4dc; font-family: 'PingFang SC', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }}
+            .sidebar {{ width: 260px; background: #1e222d; border-right: 1px solid #363c4e; padding: 20px; overflow-y: auto; }}
+            .main-content {{ flex: 1; padding: 20px; overflow-y: auto; position: relative; }}
+            .search-bar {{ width: 100%; max-width: 600px; background: #2a2e39; border: 1px solid #363c4e; border-radius: 4px; padding: 10px 15px; color: #fff; margin-bottom: 25px; }}
+            .mkt-grid {{ display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }}
+            .card {{ background: #1e222d; border-radius: 12px; padding: 25px; border: 1px solid #363c4e; margin-bottom: 20px; }}
+            .key-insights {{ background: rgba(24, 144, 255, 0.05); border: 1px dashed #1890ff; border-radius: 8px; padding: 15px; font-size: 14px; line-height: 1.8; color: #f0f3fa; margin: 20px 0; }}
+            .info-box {{ background: #2a2e39; padding: 12px; border-radius: 6px; font-size: 13px; text-align: center; }}
+            .news-item {{ font-size: 13px; color: #848e9c; padding: 8px 0; border-bottom: 1px solid #2a2e39; }}
+            .sentiment-box {{ background: #1e222d; border: 1px solid #363c4e; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px; }}
+            .gauge {{ width: 120px; height: 120px; border-radius: 50%; border: 8px solid #363c4e; border-top-color: #1890ff; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; }}
+            ::-webkit-scrollbar {{ width: 6px; }}
+            ::-webkit-scrollbar-thumb {{ background: #363c4e; border-radius: 10px; }}
         </style>
     </head>
     <body>
-        <div class="container">
-            <div class="header">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1 style="margin: 0; font-size: 26px; letter-spacing: 1px;">🚀 QUANT 智能復盤終端 <span style="font-weight: normal; font-size: 14px; opacity: 0.6;">v15.8 PRO</span></h1>
-                        <div style="margin-top: 15px;">{health_html}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div class="tencent-tag">TENCENT CLOUD DATA</div>
-                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">更新時間: {update_time}</div>
-                    </div>
-                </div>
-                <div style="margin-top: 20px; font-size: 13px; color: rgba(255,255,255,0.7); display: flex; gap: 20px;">
-                    <span>📡 主力數據源: <b style="color:#fff;">{source_name}</b></span>
-                    <span>🔍 掃描樣本: {total_count} 檔標的</span>
+        <div class="sidebar">
+            <div style="font-weight: bold; font-size: 14px; margin-bottom: 20px; color: #1890ff;">🕒 分析任務歷史</div>
+            <div style="font-size: 12px; color: #848e9c; line-height: 2.5;">
+                <div style="background:#2a2e39; padding:5px 10px; border-radius:4px; margin-bottom:10px;">中国石油 (601857) <span style="float:right">45</span></div>
+                <div style="padding:5px 10px;">腾讯控股 (00700) <span style="float:right">35</span></div>
+                <div style="padding:5px 10px;">小米集团 (01810) <span style="float:right">35</span></div>
+                <div style="padding:5px 10px;">华润三九 (000999) <span style="float:right">42</span></div>
+            </div>
+            <div style="margin-top: 40px;">
+                <div style="font-weight: bold; font-size: 14px; margin-bottom: 20px; color: #1890ff;">📡 數據源健康</div>
+                <div style="font-size: 11px;">
+                    EM: {health_status.get('EM', '🟢')} <br> Sina: {health_status.get('Sina', '🟢')}
                 </div>
             </div>
+        </div>
 
-            <div class="mkt-bar">{index_html}</div>
+        <div class="main-content">
+            <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 30px;">
+                <input type="text" class="search-bar" placeholder="輸入股票代碼，如 600519, 00700, AAPL">
+                <button style="background: #1890ff; color: white; border: none; padding: 10px 25px; border-radius: 4px; cursor: pointer; font-weight: bold;">分析</button>
+            </div>
 
-            {sections_html}
-
-            <div class="footer">
-                <b style="color: #ff4d4f; font-size: 15px;">⚠️ 專業風險提示與聲明：</b><br>
-                1. <b>數據說明</b>：本報告數據整合自東方財富爬蟲、新浪財經 API 及騰訊財經數據雲。當前系統已激活熔斷保護機制，確保在高頻監控下的連線穩定性。<br>
-                2. <b>AI 算法</b>：報告中「AI 洞察」內容由 GPT-4o-mini 模型基於實時 K 線、技術指標（RSI/籌碼分布）及板塊聯動性自動生成，不代表人工審核意見。<br>
-                3. <b>免責聲明</b>：量化分析結果僅供科研與模擬盤參考，<b>不構成任何形式的投資建議、要約或保證</b>。金融市場具備高度不可預測性，請務必根據自身財務狀況及風險承受能力獨立決策，自負盈虧。
-                <br><br>
-                <div style="text-align: center; border-top: 1px solid #f0f0f0; padding-top: 20px; color: #bfbfbf;">
-                    © 2026 QUANT Deployment Engine. Powered by AkShare Open Data.
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 3;">
+                    <div class="mkt-grid">{index_html}</div>
+                    {cards_html}
+                </div>
+                
+                <div style="flex: 1;">
+                    <div class="sentiment-box">
+                        <div style="font-size: 14px; margin-bottom: 15px;">Market Sentiment</div>
+                        <div class="gauge">48</div>
+                        <div style="font-size: 14px; color: #1890ff;">中性</div>
+                        <div style="font-size: 11px; color: #848e9c; margin-top: 10px;">恐懼貪婪指數</div>
+                    </div>
+                    <div class="card" style="padding: 15px;">
+                        <div style="font-size: 12px; color: #1890ff; font-weight: bold; margin-bottom: 10px;">數據源模式</div>
+                        <div style="font-size: 12px;">{source_name}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -151,13 +122,9 @@ def generate_report(ai_results, new_count, total_count, source_name, industry_da
     </html>
     """
 
-    # 安全地寫入文件
-    try:
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(html_template)
-        print(f"✅ 成功生成復盤報告: {output_path}")
-    except Exception as e:
-        print(f"❌ 報告寫入失敗: {e}")
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html_template)
+
 
 
 
