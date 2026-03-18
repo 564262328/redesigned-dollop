@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 
 def generate_report(data_list, new_count, total_count):
-    # 动态生成股票卡片的 HTML 字符串 (这一部分使用单括号，因为里面有变量 s)
+    # 动态生成股票卡片的 HTML (这一部分使用单括号，因为里面有 Python 变量 s)
     cards_html = ""
     for s in data_list:
         is_up = "-" not in str(s.get('change', ''))
@@ -44,8 +44,8 @@ def generate_report(data_list, new_count, total_count):
 
     cur_time = datetime.now().strftime("%Y-%m-%d %H:%M")
     
-    # 注意：下面的 HTML 模板中，CSS 样式和 JS 函数使用了 {{ }}
-    # 只有 Python 变量部分（如 {total_count}）使用单括号
+    # 核心：CSS 样式和 JavaScript 中的大括号全部双写 {{ }}
+    # Python 变量（如 {total_count}）保留单写
     full_html = f"""
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -66,7 +66,6 @@ def generate_report(data_list, new_count, total_count):
                     <h1 class="text-4xl font-black italic tracking-tighter terminal-glow bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-rose-400">QUANT TERMINAL</h1>
                     <p class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-[0.2em]">Data Sync: {cur_time}</p>
                 </div>
-                
                 <div class="relative w-full md:w-96">
                     <input type="text" id="stockSearch" placeholder="输入股票名称或代码..." 
                         class="w-full bg-slate-900 border border-white/10 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-slate-600">
@@ -113,9 +112,9 @@ def generate_report(data_list, new_count, total_count):
                 }});
 
                 if (hasMatch) {{
-                    noResults.classList.add('hidden');
+                    noResults.style.display = 'none';
                 }} else {{
-                    noResults.classList.remove('hidden');
+                    noResults.style.display = 'block';
                 }}
             }});
         </script>
@@ -123,12 +122,13 @@ def generate_report(data_list, new_count, total_count):
     </html>
     """
     
-    # 保存路径
+    # 强制写回根目录的 index.html
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     output_path = os.path.join(base_dir, "index.html")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(full_html)
     print(f"✅ 看板已生成: {output_path}")
+
 
 
 
