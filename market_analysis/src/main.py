@@ -26,28 +26,47 @@ def main():
     dc = MarketDataCenter(cache_file=cache_path)
     df, source = dc.fetch_all_markets()
     
-    # 挑選 20 隻：前 10 漲幅 + 其他隨機 10
+    if df.empty:
+        print("❌ 無可用數據，終止分析。")
+        return
+
+    # --- 🎯 安全採樣邏輯修復 ---
+    # 1. 優先取漲幅前 10 (如果不足 10 則取全部)
     top_10 = df.sort_values(by='change', ascending=False).head(10)
-    others = df[~df['code'].isin(top_10['code'])].sample(n=min(10, len(df)-10))
-    target_df = pd.concat([top_10, others]).head(20)
+    
+    # 2. 獲取剩餘可選的股票 (排除已在 top_10 中的)
+    remaining_pool = df[~df['code'].isin(top_10['code'])]
+    
+    # 3. 從剩餘池中隨機取，最多取 10 檔 (確保 n >= 0)
+    sample_size = min(10, len(remaining_pool))
+    if sample_size > 0:
+        others = remaining_pool.sample(n=sample_size)
+        target_df = pd.concat([top_10, others]).head(20)
+    else:
+        target_df = top_10
 
     ai_results = []
-    print(f"🤖 正在分析 20 檔精選標的...")
+    print(f"🤖 正在分析 {len(target_df)} 檔標的...")
     for _, row in target_df.iterrows():
         chip = dc.get_chip_data(row['code'])
         combined = {**row.to_dict(), **chip}
         analysis = get_ai_analysis(row['name'], str(combined))
         if not analysis:
-            analysis = {"insights": "數據同步中...", "buy_point": "觀望", "trend_prediction": "橫盤"}
+            analysis = {"insights": "數據正在計算中...", "buy_point": "觀望", "trend_prediction": "盤整"}
         analysis.update(combined)
         ai_results.append(analysis)
         time.sleep(0.3)
 
-    indices = [{"名稱": "多市場聯動系統", "最新價": "Online", "漲跌幅": "0"}]
+    indices = dc.get_market_indices()
+    if not indices:
+        indices = [{"名稱": "多市場監控系統", "最新價": "Online", "漲跌幅": "0"}]
+        
     generate_report(ai_results, 0, len(df), source, [], indices, output_path, {"Cache": "🔵"})
+    print(f"✅ 報告已更新至: {output_path}")
 
 if __name__ == "__main__":
     main()
+
 
 
 
