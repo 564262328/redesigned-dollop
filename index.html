@@ -3,389 +3,743 @@
     <html lang="zh-CN">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>QUANT 终端 V15.1</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <style>body { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 100%); color: #f8fafc; font-family: system-ui; }</style>
+        <style>
+            body { 
+                background: radial-gradient(circle at 50% 0%, #1a1c2e 0%, #020617 100%); 
+                color: #f8fafc; 
+                font-family: ui-sans-serif, system-ui, -apple-system;
+                min-height: 100vh;
+            }
+            .terminal-text { text-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+            @keyframes pulse-slow { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        </style>
     </head>
     <body class="p-6 md:p-12">
         <div class="max-w-7xl mx-auto">
-            <header class="flex justify-between items-center border-b border-white/5 pb-10 mb-12">
+            <!-- 顶部导航栏 -->
+            <header class="flex justify-between items-end mb-16 border-b border-white/5 pb-10">
                 <div>
-                    <h1 class="text-3xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500">QUANT TERMINAL V15.0</h1>
-                    <p class="text-[10px] text-blue-500 font-mono uppercase tracking-[0.4em]">AI Asset Intelligence System</p>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_10px_#3b82f6]"></span>
+                        <h1 class="text-4xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-500 terminal-text">QUANT 终端 <span class="text-blue-500">V15.1</span></h1>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-mono uppercase tracking-[0.4em] font-bold">人工智能大数据资产监控系统</p>
                 </div>
                 <div class="text-right">
-                    <div class="text-4xl font-black italic">10978</div>
-                    <div class="text-[9px] text-slate-500 uppercase tracking-widest">Total Assets Tracked</div>
+                    <div class="text-5xl font-black italic text-white leading-none tracking-tighter">10978</div>
+                    <p class="text-[9px] text-blue-500/60 font-black uppercase tracking-widest mt-2">全市场监控资产总数</p>
                 </div>
             </header>
 
+            <!-- 统计网格 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                <div class="bg-slate-900/40 backdrop-blur-md p-8 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
+                    <div class="text-4xl font-black mb-1 italic text-emerald-400">+0</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">今日发现新资产</div>
+                    <div class="absolute -right-4 -bottom-4 text-emerald-500/5 text-8xl font-black italic group-hover:scale-110 transition-transform">NEW</div>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md p-8 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
+                    <div class="text-4xl font-black mb-1 italic text-blue-400">Sina</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">主路数据源状态</div>
+                    <div class="absolute -right-4 -bottom-4 text-blue-500/5 text-8xl font-black italic group-hover:scale-110 transition-transform">DATA</div>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md p-8 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
+                    <div class="text-4xl font-black mb-1 italic text-purple-400">GPT-4o</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">AI 决策引擎</div>
+                    <div class="absolute -right-4 -bottom-4 text-purple-500/5 text-8xl font-black italic group-hover:scale-110 transition-transform">AI</div>
+                </div>
+            </div>
+
+            <!-- 股票卡片网格 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                 
-        <div class="stock-card group p-6 bg-slate-900/40 border border-rose-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">安徽凤凰 (920000)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        安徽凤凰
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920000)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-rose-500 font-mono leading-none">17.07</div>
-                    <div class="text-[10px] text-rose-500 font-bold mt-1">0.059%</div>
+                    <div class="text-2xl font-black text-rose-500 font-mono leading-none tracking-tighter">17.07</div>
+                    <div class="text-[10px] text-rose-500/80 font-black mt-1 italic">0.059%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-rose-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">纬达光电 (920001)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        纬达光电
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920001)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-rose-500 font-mono leading-none">17.88</div>
-                    <div class="text-[10px] text-rose-500 font-bold mt-1">0.619%</div>
+                    <div class="text-2xl font-black text-rose-500 font-mono leading-none tracking-tighter">17.88</div>
+                    <div class="text-[10px] text-rose-500/80 font-black mt-1 italic">0.619%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">万达轴承 (920002)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        万达轴承
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920002)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">87.7</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-0.137%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">87.7</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-0.137%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">中诚咨询 (920003)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        中诚咨询
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920003)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">30.28</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-1.368%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">30.28</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-1.368%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-rose-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">鼎佳精密 (920005)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        鼎佳精密
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920005)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-rose-500 font-mono leading-none">38.42</div>
-                    <div class="text-[10px] text-rose-500 font-bold mt-1">1.185%</div>
+                    <div class="text-2xl font-black text-rose-500 font-mono leading-none tracking-tighter">38.42</div>
+                    <div class="text-[10px] text-rose-500/80 font-black mt-1 italic">1.185%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">晟楠科技 (920006)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        晟楠科技
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920006)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">24.76</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-0.762%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">24.76</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-0.762%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">酉立智能 (920007)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        酉立智能
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920007)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">65.87</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-1.185%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">65.87</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-1.185%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">成电光信 (920008)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        成电光信
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920008)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">29.18</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-0.579%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">29.18</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-0.579%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">丹娜生物 (920009)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        丹娜生物
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920009)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">73.24</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-0.218%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">73.24</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-0.218%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">凯添燃气 (920010)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        凯添燃气
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920010)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">12.11</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-3.66%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">12.11</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-3.66%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">特瑞斯 (920014)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        特瑞斯
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920014)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">14.26</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-4.87%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">14.26</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-4.87%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="stock-card group p-6 bg-slate-900/40 border border-emerald-500/20 rounded-3xl hover:shadow-[0_0_30px_rgba(59,130,246,0.1)] transition-all duration-500">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <!-- 核心：名称 (代码) -->
-                    <div class="text-lg font-black tracking-tighter text-white group-hover:text-blue-400">锦华新材 (920015)</div>
-                    <div class="mt-2 inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/20 text-blue-400">A股</div>
+        <div class="stock-card group relative p-6 bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:border-blue-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]">
+            <!-- 顶部信息 -->
+            <div class="flex justify-between items-start mb-5">
+                <div class="space-y-1">
+                    <div class="text-xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors leading-none">
+                        锦华新材
+                        <span class="text-[10px] text-slate-500 font-mono ml-1 font-medium italic">(920015)</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="px-2 py-0.5 rounded-md text-[8px] font-black border bg-blue-500/20 text-blue-400 border-blue-500/30 uppercase tracking-widest">A股</span>
+                        <span class="text-[8px] text-slate-600 font-mono">#全市场</span>
+                    </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-xl font-black text-emerald-500 font-mono leading-none">44.81</div>
-                    <div class="text-[10px] text-emerald-500 font-bold mt-1">-0.533%</div>
+                    <div class="text-2xl font-black text-emerald-500 font-mono leading-none tracking-tighter">44.81</div>
+                    <div class="text-[10px] text-emerald-500/80 font-black mt-1 italic">-0.533%</div>
                 </div>
             </div>
-            
-            <div class="p-4 bg-slate-950/60 rounded-2xl border border-white/5 mb-6 min-h-[80px]">
-                <div class="text-[8px] text-slate-500 font-black mb-2 tracking-widest uppercase">Quant Insight</div>
-                <p class="text-[11px] leading-relaxed text-slate-400 italic">数据加载中...</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 text-center">
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议介入</div>
-                    <div class="text-sm font-black text-rose-500 font-mono tracking-tighter">--</div>
+
+            <!-- 数据快报 -->
+            <div class="grid grid-cols-3 gap-2 mb-5 px-1">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">换手率</span>
+                    <span class="text-xs font-mono text-slate-200">--%</span>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-xl border border-white/5">
-                    <div class="text-[8px] text-slate-500 mb-1 font-bold">建议防守</div>
-                    <div class="text-sm font-black text-emerald-500 font-mono tracking-tighter">--</div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">量比</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[8px] text-slate-500 font-bold uppercase tracking-tight">动态PE</span>
+                    <span class="text-xs font-mono text-slate-200">--</span>
+                </div>
+            </div>
+
+            <!-- AI 深度分析区 -->
+            <div class="relative p-4 bg-black/40 rounded-2xl border border-white/5 mb-6 group-hover:bg-slate-950/80 transition-colors">
+                <div class="absolute -top-2 left-3 px-2 bg-slate-800 rounded text-[7px] text-blue-400 font-black tracking-[0.2em] border border-white/10 uppercase">AI 深度研判</div>
+                <p class="text-[11px] leading-relaxed text-slate-400 italic font-medium pt-1">
+                    数据加载中...
+                </p>
+            </div>
+
+            <!-- 策略点位 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 group-hover:border-rose-500/40 transition-all">
+                    <div class="text-[8px] text-rose-500/60 mb-1 font-black italic tracking-widest text-center uppercase">建议买入位</div>
+                    <div class="text-sm font-black text-rose-500 font-mono text-center tracking-tighter">--</div>
+                </div>
+                <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 group-hover:border-emerald-500/40 transition-all">
+                    <div class="text-[8px] text-emerald-500/60 mb-1 font-black italic tracking-widest text-center uppercase">防御止损位</div>
+                    <div class="text-sm font-black text-emerald-500 font-mono text-center tracking-tighter">--</div>
                 </div>
             </div>
         </div>
         
             </div>
 
-            <footer class="mt-20 border-t border-white/5 pt-10 text-[10px] text-slate-600 font-mono flex justify-between uppercase">
-                <div>Source: <span class="text-blue-400 font-bold">Sina</span></div>
-                <div>Sync Time: 2026-03-18 14:22</div>
+            <!-- 页脚 -->
+            <footer class="mt-24 border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] text-slate-600 font-mono uppercase tracking-[0.2em] font-bold">
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></span>
+                        <span>系统连接状态: 极佳</span>
+                    </div>
+                    <div>数据来源: <span class="text-blue-500">Sina</span></div>
+                </div>
+                <div>最后更新时间: 2026-03-18 14:28 (UTC+8)</div>
             </footer>
         </div>
     </body>
