@@ -2,12 +2,11 @@ name: Quant Terminal Deployment
 
 on:
   push:
-    branches: [ "main", "master" ] # 兼容 main 或 master 分支
+    branches: [ "main", "master" ]
   schedule:
     - cron: '0 8 * * *'  # 每天北京时间下午 4:00 自动运行
-  workflow_dispatch:      # 支持手动点击运行
+  workflow_dispatch:
 
-# 核心权限配置
 permissions:
   contents: write
   pages: write
@@ -17,72 +16,67 @@ jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. 检出代码 (获取完整历史记录以支持 rebase)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2. 设置 Python 环境
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 3. 安装依赖库
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install akshare pandas requests tenacity
 
-      # 4. 运行量化分析主程序
       - name: Run Market Analysis
         working-directory: ./market_analysis/src
         env:
-          # 请确保在 GitHub Settings -> Secrets -> Actions 中配置好这两项
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
         run: python main.py
 
-      # 5. 提交并推送生成的 HTML 和 数据库
+      # --- 核心：自动备份历史报告 ---
+      - name: Archive Historical Report
+        run: |
+          mkdir -p history_reports
+          # 使用北京时间日期作为文件名 (GitHub Runner 默认是 UTC，这里加 8 小时处理或直接用日期)
+          REPORT_DATE=$(date +'%Y-%m-%d')
+          cp index.html history_reports/report_${REPORT_DATE}.html
+          echo "✅ 历史报告已备份: history_reports/report_${REPORT_DATE}.html"
+
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 确保数据目录存在
-          mkdir -p market_analysis/data
-          
-          # 将生成的网页和数据库添加到暂存区
+          # 确保所有变动的文件（HTML、数据库、历史备份）都被添加
           git add index.html
           git add market_analysis/data/stocks_db.csv || true
+          git add history_reports/
           
-          # 检查是否有文件变动
           if git diff --staged --quiet; then
             echo "✅ 没有发现文件变动，跳过推送。"
           else
-            # 顺序：先 commit 本地更改
-            git commit -m "🚀 自动更新：部署量化看板 V14.6"
-            
-            # 关键：动态获取当前分支并执行 rebase 拉取，防止 push 冲突
+            git commit -m "🚀 自动更新：部署 V14.7 并存档历史报告 [$(date +'%Y-%m-%d')]"
             git pull --rebase origin ${GITHUB_REF_NAME}
-            
-            # 推送到远程仓库
             git push origin ${GITHUB_REF_NAME}
           fi
 
-      # 6. 配置并部署到 GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' # 部署包含新版 index.html 的仓库根目录
+          path: '.' 
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
