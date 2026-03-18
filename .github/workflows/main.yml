@@ -4,9 +4,11 @@ on:
   push:
     branches: [ "main", "master" ]
   schedule:
-    - cron: '*/20 * * * *' # 每 20 分鐘更新
-  workflow_dispatch:
+    # 每 20 分鐘運行一次，配合代碼緩存機制
+    - cron: '*/20 * * * *'
+  workflow_dispatch: # 支持手動觸發測試
 
+# 核心權限配置：必須開啟以寫回緩存並發布 Pages
 permissions:
   contents: write
   pages: write
@@ -15,64 +17,79 @@ permissions:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    
+    # 防止多個工作流同時推送產生的 Git 鎖定衝突
     concurrency:
       group: quant-deployment
-    
+      cancel-in-progress: false
+
     steps:
+      # 1. 檢出代碼 (獲取完整歷史以支持 rebase)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2. 設置 Python 環境
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
+      # 3. 安裝依賴 (包含技術指標與新聞檢索所需庫)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --prefer-binary akshare pandas requests numpy
 
+      # 4. 運行量化分析主程序
       - name: Run Market Analysis
         env:
+          # 這些變量必須在 GitHub Settings -> Secrets 中設置
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
           TAVILLY_API_KEY: ${{ secrets.TAVILLY_API_KEY }}
           SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
-          # 💡 修正：將路徑設為 market_analysis 資料夾所在的起點
-          PYTHONPATH: ${{ github.workspace }}/market_analysis
+          # 💡 核心路徑修正：將 PYTHONPATH 設為市場分析的主目錄
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/market_analysis
         run: |
-          # 1. 智能清理損壞緩存
+          # 4.1 智能清理損壞緩存 (文件小於 2KB 或含錯誤碼時刪除)
           if [ -f "market_cache.json" ]; then
             if grep -q "000001" market_cache.json || [ $(stat -c%s "market_cache.json") -lt 2048 ]; then
-              echo "🧹 清理無效緩存..."
+              echo "🧹 檢測到異常緩存，執行清理..."
               rm -f market_cache.json
             fi
           fi
 
-          # 2. 執行主程序
+          # 4.2 【關鍵修正】強行建立包標識符，解決 ModuleNotFoundError
+          touch market_analysis/__init__.py || true
+          touch market_analysis/src/__init__.py || true
+          touch market_analysis/data_provider/__init__.py || true
+
+          # 4.3 執行主程序
           python market_analysis/src/main.py
 
+      # 5. 提交並推送數據變動 (實現 20 分鐘緩存共享)
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 抓取所有變動
+          # 抓取所有變動 (包含 index.html 和 market_cache.json)
           git add -A 
           
           if git diff --staged --quiet; then
-            echo "✅ 無數據變動，跳過推送。"
+            echo "✅ 數據與緩存無變化，跳過推送。"
           else
-            git commit -m "🚀 自動復盤：[2026-03-19] 市場動態更新"
-            # 使用 autostash 處理併發衝突
+            git commit -m "🚀 自動復盤：[2026-03-19] 市場動態與緩存同步"
+            # 使用 autostash 處理 Actions 運行期間產生的微小衝突
             git pull --rebase --autostash origin ${GITHUB_REF_NAME}
             git push origin ${GITHUB_REF_NAME}
           fi
 
+      # 6. 配置並部署到 GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
@@ -84,6 +101,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
