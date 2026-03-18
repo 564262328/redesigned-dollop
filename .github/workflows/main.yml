@@ -1,14 +1,14 @@
-name: Quant Terminal Deployment
+name: Quant Terminal Modular Deployment
 
 on:
   push:
     branches: [ "main", "master" ]
   schedule:
-    # 每 20 分鐘運行一次，配合代碼中的 20 分鐘緩存邏輯
+    # 每 20 分鐘執行一次，與代碼中的 Config.CACHE_MINUTES 保持同步
     - cron: '*/20 * * * *'
   workflow_dispatch: # 支持手動點擊運行
 
-# 核心權限配置：必須開啟以允許 Actions 提交數據和部署 Pages
+# 核心權限配置
 permissions:
   contents: write
   pages: write
@@ -17,10 +17,12 @@ permissions:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    # 防止多個工作流同時跑產生的 Git 鎖定問題
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
     
+    # 防止多個工作流同時推送產生的 Git 衝突
+    concurrency:
+      group: quant-modular-deployment
+      cancel-in-progress: false
+
     steps:
       # 1. 檢出代碼 (獲取完整歷史以支持 rebase)
       - name: Checkout repository
@@ -28,55 +30,55 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. 設置 Python 環境
+      # 2. 設置 Python 3.11 與依賴緩存
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      # 3. 安裝依賴
+      # 3. 安裝量化與 AI 依賴
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --prefer-binary akshare pandas requests
 
-      # 4. 運行量化分析主程序 (含智能緩存清理)
+      # 4. 運行量化分析主程序
       - name: Run Market Analysis
         env:
+          # 必須在 GitHub Settings -> Secrets 中配置
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
-          PYTHONPATH: ${{ github.workspace }}/market_analysis/src
+          # 【重要】設置 PYTHONPATH 為根目錄，確保 main.py 能找到 src 和 data_provider
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          # 4.1 智能清理壞緩存
+          # 4.1 智能清理壞緩存 (文件小於 2KB 或含錯誤代碼時刪除)
           if [ -f "market_cache.json" ]; then
             if grep -q "000001" market_cache.json || [ $(stat -c%s "market_cache.json") -lt 2048 ]; then
-              echo "🧹 檢測到損壞數據，正在清理緩存..."
+              echo "🧹 檢測到異常緩存，執行強制清理..."
               rm -f market_cache.json
             fi
           fi
 
-          # 4.2 執行主程序
-          python market_analysis/src/main.py
+          # 4.2 執行根目錄的 main.py
+          python main.py
 
-      # 5. 【核心修復】提交並推送數據變動
+      # 5. 【核心步驟】提交並推送數據變動 (實現 20 分鐘緩存共享)
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 5.1 強制將所有變動（含 index.html, market_cache.json, stocks_db.json 等）加入暫存
-          # 這樣就不會出現 "unstaged changes" 導致 rebase 失敗的問題
+          # 5.1 使用 -A 抓取所有變動 (包含 index.html 和最重要的 market_cache.json)
           git add -A 
           
-          # 5.2 檢查是否有任何變更需要提交
+          # 5.2 只有在有變更時才提交，避免無意義的跑批
           if git diff --staged --quiet; then
-            echo "✅ 今日數據無變化，跳過推送。"
+            echo "✅ 數據與緩存均在有效期內，跳過推送。"
           else
-            git commit -m "🚀 自動更新：V15.8 PRO [多市場+緩存同步]"
+            git commit -m "🚀 自動同步：V15.8 PRO [多市場數據+緩存持久化]"
             
-            # 5.3 【神級參數】加入 --autostash
-            # 即使拉取過程中產生細微衝突，也會自動隱藏並恢復，確保推送成功
+            # 5.3 使用 rebase 和 autostash 確保在高頻運行下推送成功
             git pull --rebase --autostash origin ${GITHUB_REF_NAME}
             git push origin ${GITHUB_REF_NAME}
           fi
@@ -88,11 +90,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.' 
+          path: '.' # 部署根目錄下的 index.html
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
