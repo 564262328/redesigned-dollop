@@ -1,0 +1,16 @@
+name: API Diagnostic Test
+on: workflow_dispatch # 允許手動點擊運行
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install akshare pandas requests
+      - name: Run Diagnostic
+        run: python debug_api.py
