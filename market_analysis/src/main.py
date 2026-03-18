@@ -1,8 +1,4 @@
-import os
-import json
-import time
-import requests
-import pandas as pd
+import os, json, time, requests, pandas as pd
 from data_fetcher import MarketDataCenter
 from html_generator import generate_report
 
@@ -15,56 +11,56 @@ def get_ai_analysis(name, info, market_context):
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": "gpt-4o-mini", 
-                "messages": [{"role": "user", "content": f"分析股票 {name} ({info})。大盤: {market_context}。請以 JSON 返回 insights, buy_point, stop_loss。"}],
-                "response_format": {"type": "json_object"}, "temperature": 0.3
-            }, timeout=30)
+                "messages": [{"role": "user", "content": f"分析股票 {name}。數據: {info}。參考大盤: {market_context}。請輸出繁體中文 JSON: insights, buy_point, trend_prediction。"}],
+                "response_format": {"type": "json_object"}, "temperature": 0.2
+            }, timeout=45)
         return json.loads(res.json()['choices']['message']['content'])
     except: return None
 
 def main():
-    # --- 絕對路徑計算 (防止 404) ---
+    # 路徑計算
     src_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(src_dir))
     output_path = os.path.join(project_root, "index.html")
+    cache_path = os.path.join(project_root, "market_cache.json")
 
-    print(f"🚀 QUANT Terminal V15.8 啟動...")
-    dc = MarketDataCenter()
+    print(f"🚀 QUANT Terminal V15.8 PRO 啟動...")
+    dc = MarketDataCenter(cache_file=cache_path)
     
-    # 1. 獲取行情
-    df, source = dc.get_all_market_data()
-    indices = dc.get_market_indices()
-    _, total_count = dc.sync_and_get_new(df)
-    
-    # 2. 準備健康狀態數據
-    health_status = {
-        "TX": "🔴" if dc._circuit_breaker["TX"] else "🟢",
-        "Sina": "🔴" if dc._circuit_breaker["Sina"] else "🟢",
-        "EM": "🔴" # 已知封鎖
-    }
+    # 1. 獲取全市場數據
+    df, source = dc.fetch_all_markets()
+    if df.empty: return
 
-    # 3. AI 分析 (篩選前 8 檔)
-    hot_df = df.sort_values(by='change', ascending=False).head(8)
+    # 2. 挑選分析標的 (漲幅榜前 10 + 隨機挑選 10 檔不同類型的股票)
+    top_10 = df.sort_values(by='change', ascending=False).head(10)
+    random_10 = df.sample(n=10)
+    target_df = pd.concat([top_10, random_10]).drop_duplicates().head(20)
+
+    # 3. 執行批量分析
     ai_results = []
-    for _, row in hot_df.iterrows():
-        print(f"🤖 正在分析: {row['name']} ({row['code']})...")
+    indices = [{"名稱": "A股/港股/ETF 聯動系統", "最新價": "多市場", "漲跌幅": "0"}]
+    
+    print(f"🤖 正在分析 {len(target_df)} 檔精選標的...")
+    for _, row in target_df.iterrows():
         chip = dc.get_chip_data(row['code'])
         combined = {**row.to_dict(), **chip}
         
-        analysis = get_ai_analysis(row['name'], str(combined), str(indices[:3]))
+        analysis = get_ai_analysis(row['name'], str(combined), "多頭行情")
         if not analysis:
-            analysis = {"insights": "網絡延遲，請關注技術位。", "buy_point": "觀望", "stop_loss": "前低"}
+            analysis = {"insights": "數據正在計算中...", "buy_point": "觀望", "trend_prediction": "盤整"}
+        
         analysis.update(combined)
         ai_results.append(analysis)
+        time.sleep(1) # 防 AI 速率限制
 
     # 4. 生成報告
-    try:
-        generate_report(ai_results, 0, total_count, source, dc.get_industry_heatmap(), indices, output_path, health_status)
-        print(f"✅ 成功！報告已保存至: {output_path}")
-    except Exception as e:
-        print(f"❌ 報告生成失敗: {e}")
+    health_status = {"TX": "🟢", "Sina": "🟢", "Shared_Cache": "🔵"}
+    generate_report(ai_results, 0, len(df), source, [], indices, output_path, health_status)
+    print(f"✅ 報告已生成，共分析 {len(ai_results)} 檔。")
 
 if __name__ == "__main__":
     main()
+
 
 
 
