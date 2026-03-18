@@ -1,78 +1,37 @@
 
     <!DOCTYPE html>
-    <html lang="zh-TW">
+    <html>
     <head>
         <meta charset="UTF-8">
-        <title>QUANT 2026 專業終端</title>
         <style>
-            body { background-color: #131722; color: #d1d4dc; font-family: sans-serif; margin: 0; padding: 20px; display: flex; height: 100vh; overflow: hidden; }
-            .sidebar { width: 240px; background: #1e222d; border-right: 1px solid #363c4e; padding: 20px; }
-            .main-content { flex: 1; padding-left: 25px; overflow-y: auto; }
-            .search-bar { width: 100%; max-width: 500px; background: #2a2e39; border: 1px solid #363c4e; border-radius: 4px; padding: 12px; color: #fff; margin-bottom: 30px; }
-            .card { background: #1e222d; border-radius: 12px; padding: 20px; border: 1px solid #363c4e; margin-bottom: 20px; }
-            .chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); background: #2a2e39; padding: 10px; border-radius: 6px; font-size: 11px; margin: 15px 0; color: #848e9c; }
-            .key-insights { background: rgba(24,144,255,0.05); border-left: 3px solid #1890ff; padding: 12px; font-size: 13px; line-height: 1.6; margin-bottom: 15px; color: #f0f3fa; }
-            ::-webkit-scrollbar { width: 5px; }
-            ::-webkit-scrollbar-thumb { background: #363c4e; }
+            body { background:#131722; color:#d1d4dc; font-family:sans-serif; display:flex; }
+            .sidebar { width:220px; background:#1e222d; padding:20px; border-right:1px solid #363c4e; }
+            .main { flex:1; padding:20px; overflow-y:auto; }
+            .card { background:#1e222d; border-radius:8px; padding:15px; margin-bottom:15px; border:1px solid #363c4e; }
+            .tag { background:#2a2e39; padding:3px 8px; border-radius:4px; color:#1890ff; }
         </style>
     </head>
     <body>
         <div class="sidebar">
-            <div style="color: #1890ff; font-weight: bold; margin-bottom: 25px;">🚀 智能復盤終端</div>
-            <div style="font-size: 12px; color: #848e9c; margin-bottom: 10px;">🕒 更新時間: 2026-03-18 18:36</div>
-            <div style="font-size: 12px; color: #848e9c; margin-bottom: 30px;">📡 模式: Local_Shared_Cache</div>
-            <div style="color: #1890ff; font-size: 13px; margin-bottom: 15px;">📊 市場情緒熱度</div>
-            <div style="background:#2a2e39; height:10px; border-radius:5px; margin-bottom:10px;"><div style="width:65%; background:#1890ff; height:100%; border-radius:5px;"></div></div>
-            <div style="text-align:center; color:#ff4d4f; font-weight:bold; font-size:20px;">65 (中性偏貪婪)</div>
+            <h3>🚀 QUANT 終端</h3>
+            <p style="font-size:12px;">更新: 2026-03-18 18:47<br>源: Local_Shared_Cache</p>
         </div>
-        <div class="main-content">
-            <div style="display:flex; gap:15px; align-items:center; margin-bottom:25px;">
-                <input type="text" class="search-bar" placeholder="🔍 搜尋股票代碼分析 (如 00700, 600519, 510300)...">
-                
-        <div style="background: #1e222d; padding: 12px 20px; border-radius: 8px; border: 1px solid #363c4e;">
-            <div style="font-size: 12px; color: #848e9c;">系統監控中</div>
-            <div style="font-size: 18px; font-weight: bold; color: #1890ff; margin-top: 4px;">多市場監控系統 <small>Online</small></div>
-        </div>
-        
-            </div>
-            <div style="max-width: 800px;">
-                <h3 style="color:#1890ff; border-bottom: 1px solid #363c4e; padding-bottom: 10px; margin-bottom: 20px;">🔥 AI 批量分析結果 (今日焦點)</h3>
-                
-        <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h2 style="margin: 0; font-size: 20px; color: #f0f3fa;">
-                        數據更新中 <span style="font-size:13px; color:#848e9c;">000001</span>
-                        <span style="font-size:10px; background:#1890ff; color:white; padding:1px 5px; border-radius:3px; margin-left:8px;">A股</span>
-                    </h2>
-                    <div style="font-size: 11px; color: #1890ff; margin-top: 6px;">
-                        PE: None | 換手: None% | 量比: None
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 22px; font-weight: bold; color: #52c41a;">0</div>
-                    <div style="font-size: 13px; color: #52c41a;">0.0%</div>
-                </div>
-            </div>
-
-            <div class="chip-grid">
-                <div>獲利比例: <b style="color:#fff;">48.5%</b></div>
-                <div>平均成本: <b style="color:#fff;">398.19</b></div>
-                <div>籌碼集中度: <b style="color:#fff;">4.06%</b></div>
-            </div>
-
-            <div class="key-insights">
-                <div style="color: #1890ff; font-size: 10px; font-weight: bold; margin-bottom: 8px;">AI DEEP ANALYTICS</div>
-                數據正在掃描...
-            </div>
+        <div class="main">
+            <h3>今日焦點 (20 檔)</h3>
             
-            <div style="display: flex; gap: 10px; font-size: 12px;">
-                <div style="flex:1; background:#2a2e39; padding:8px; border-radius:4px; text-align:center;">策略: <span style="color:#ff9d00;">觀望</span></div>
-                <div style="flex:1; background:#2a2e39; padding:8px; border-radius:4px; text-align:center;">預測: <span style="color:#1890ff;">盤整</span></div>
+        <div class="card">
+            <div style="display:flex; justify-content:space-between;">
+                <b>數據更新中 (000001) [A股]</b>
+                <span style="color:#52c41a; font-weight:bold;">0 (0%)</span>
+            </div>
+            <div style="font-size:11px; color:#1890ff; margin:5px 0;">市值: 0 | 換手: None%</div>
+            <div style="background:rgba(24,144,255,0.05); padding:10px; font-size:13px; margin:10px 0; border-left:3px solid #1890ff;">數據正在計算中...</div>
+            <div style="display:flex; gap:10px; font-size:12px;">
+                <span class="tag">策略: 觀望</span>
+                <span class="tag">預測: 盤整</span>
             </div>
         </div>
         
-            </div>
         </div>
     </body>
     </html>
