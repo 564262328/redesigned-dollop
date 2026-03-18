@@ -1,4 +1,4 @@
-akshare
-pandas
-requests
-tenacity
+akshare>=1.13.0
+pandas>=2.0.0
+requests>=2.31.0
+tenacity>=8.2.0
