@@ -38,15 +38,23 @@ def main():
         # result = get_deepseek_analysis(name, row.to_string())
         
         # 暂时使用模拟数据进行排版测试
-        result = {{
-            'stock_name': name,
-            'stock_code': row.get('代码', '000000'),
-            'price': row.get('最新价', '0.00'),
-            'change': f"{{row.get('涨跌幅', '0')}}%",
-            'insights': "技术面显示资金持续流入，均线多头排列，短期看涨。",
-            'buy_point': "支撑位介入",
-            'stop_loss': "破5日线离场"
-        }}
+# --- 修改前 (报错的代码) ---
+result = {{
+    'stock_name': name,
+    'stock_code': row.get('代码', '000000'),
+    ...
+}}
+
+# --- 修改后 (正确的代码) ---
+result = {
+    'stock_name': name,
+    'stock_code': str(row.get('代码', '000000')),
+    'price': str(row.get('最新价', '0.00')),
+    'change': f"{row.get('涨跌幅', '0')}%",
+    'insights': "技术面显示资金持续流入，均线多头排列，短期看涨。",
+    'buy_point': "支撑位介入",
+    'stop_loss': "破5日线离场"
+}
         ai_results.append(result)
 
     if ai_results:
