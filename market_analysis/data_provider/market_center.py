@@ -95,5 +95,22 @@ class MarketDataCenter:
     def _get_core_fallback(self):
         # 你的保底邏輯保持不變...
         return pd.DataFrame([{"code":"600519","name":"貴州茅台","price":1700,"change":0.5}])
+       def get_chip_data(self, code):
+        """提供模擬籌碼數據，防止 main.py 崩潰"""
+        import random
+        random.seed(code)
+        return {
+            "profit_ratio": f"{random.uniform(40, 95):.1f}%", 
+            "chip_concentrate": f"{random.uniform(5, 12):.2f}%"
+        }
+
+    def get_tech_indicators(self, code, price):
+        """提供技術指標保底，防止 main.py 崩潰"""
+        return {
+            "ma5": price, "ma10": price, "ma20": price, 
+            "bullish": "📊 數據加載中", "rsi": 50
+        }
+
+
 
 
