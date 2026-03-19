@@ -12,161 +12,92 @@ logger = logging.getLogger("MarketCenter")
 class MarketDataCenter:
     def __init__(self, cache_file="market_cache.json"):
         self.cache_file = cache_file
-        # 從環境變數獲取 MAIRUI_KEY 並清理空格
-        self.mairui_key = os.getenv("MAIRUI_KEY", "").strip()
+        # 強制清理 Key 的空格與斜槓
+        self.mairui_key = os.getenv("MAIRUI_KEY", "").strip().lstrip('/')
 
     def fetch_all_markets(self):
         """數據獲取鏈條：AKShare -> 麥蕊 API -> 保底數據"""
-        # 1. 優先嘗試 AKShare (東方財富源)
         try:
-            logger.info("🌐 嘗試 AKShare 同步 (東財數據源)...")
+            logger.info("🌐 嘗試 AKShare 同步...")
             df_a = ak.stock_zh_a_spot_em()
             df_hk = ak.stock_hk_spot_em()
-            
             if df_a is not None and not df_a.empty:
-                map_cols = {
-                    "代码": "code", "名称": "name", "最新价": "price", "涨跌幅": "change",
-                    "换手率": "turnover", "量比": "vol_ratio", "市盈率-动态": "pe", "总市值": "total_mv"
-                }
+                map_cols = {"代码":"code","名称":"name","最新价":"price","涨跌幅":"change",
+                            "换手率":"turnover","量比":"vol_ratio","市盈率-动态":"pe","总市值":"total_mv"}
                 df = pd.concat([df_a.rename(columns=map_cols), df_hk.rename(columns=map_cols)], ignore_index=True)
                 return self._clean_data(df), "AKShare_Main"
-        except Exception as e:
-            logger.warning(f"⚠️ AKShare 請求受阻: {e}")
+        except: pass
 
-        # 2. 切換至麥蕊 API 備援 (解決 1700 保底價問題)
         if self.mairui_key:
-            logger.info(f"🔄 切換至麥蕊 API 備援方案 (Key: {self.mairui_key[:5]}...)")
+            logger.info(f"🔄 觸發麥蕊 API 備援...")
             res_df = self._fetch_from_mairui()
-            if res_df is not None:
-                return res_df, "MaiRui_Realtime_API"
+            if res_df is not None: return res_df, "MaiRui_Realtime_API"
 
-        # 3. 終極保底
         logger.error("❌ 所有動態數據源失效，啟動保底清單")
         return self._get_core_fallback(), "Security_Fallback"
 
     def _fetch_from_mairui(self):
-        """核心修正：自動適配麥蕊 API 的各種欄位名稱 (dm, mc, p 等)"""
+        """物理級 URL 防錯拼接"""
         try:
-            key = self.mairui_key.lstrip('/')
-            url = f"https://api.mairui.club{key}"
+            # 這是最穩定的拼接方式，強制區分域名、路徑、密鑰
+            host = "https://api.mairui.club"
+            path = "/hslt/list"
+            token = self.mairui_key
+            url = f"{host}{path}/{token}"
             
-            logger.info(f"🔗 正在請求麥蕊接口: https://api.mairui.club***")
+            logger.info(f"🔗 請求地址確認: {host}{path}/***")
             res = requests.get(url, timeout=15)
             res.raise_for_status()
             
             data = res.json()
             if isinstance(data, list) and len(data) > 0:
                 df = pd.DataFrame(data)
-                
-                # --- 自動識別並重命名欄位 ---
+                # 自動識別麥蕊欄位
                 rename_map = {}
                 cols = df.columns.tolist()
-                
-                # 模糊匹配邏輯：確保程式能找到它想要的欄位
-                field_mapping = {
-                    'code': ['dm', 'f', 'code', 'symbol'],
-                    'name': ['mc', 'n', 'name', 'display_name'],
-                    'price': ['p', 'price', 'last'],
-                    'change': ['pc', 'zdf', 'change', 'chg'],
-                    'total_mv': ['m', 'sz', 'total_mv', 'market_cap']
-                }
-                
-                for target, aliases in field_mapping.items():
-                    for alias in aliases:
-                        if alias in cols:
-                            rename_map[alias] = target
-                            break
+                mapping = {'code':['dm','f','code'],'name':['mc','n','name'],'price':['p','price'],'change':['pc','zdf','change']}
+                for target, aliases in mapping.items():
+                    for a in aliases:
+                        if a in cols: rename_map[a] = target; break
                 
                 df = df.rename(columns=rename_map)
-                
-                # 檢查關鍵欄位是否對齊成功
-                if 'code' not in df.columns:
-                    logger.error(f"❌ 麥蕊數據解析失敗，無法識別代碼欄位。現有欄位: {cols}")
-                    return None
-                    
                 return self._clean_data(df)
-            else:
-                logger.warning("⚠️ 麥蕊 API 返回內容為空或格式錯誤")
         except Exception as e:
-            logger.error(f"❌ 麥蕊接口處理失敗: {e}")
+            logger.error(f"❌ 麥蕊接口解析崩潰: {str(e)[:50]}")
         return None
 
     def get_market_indices(self):
-        """獲取頂部四大指數 (Yahoo Finance)"""
+        """獲取頂部指數 (Yahoo Finance)"""
         indices = []
-        tickers = {
-            "000001.SS": "上證指數", 
-            "399001.SZ": "深證成指", 
-            "^HSI": "恆生指數", 
-            "^IXIC": "納斯達克"
-        }
+        tickers = {"000001.SS": "上證指數", "399001.SZ": "深證成指", "^HSI": "恆生指數", "^IXIC": "納斯達克"}
         try:
             data = yf.download(list(tickers.keys()), period="1d", interval="1m", progress=False)
             if not data.empty:
                 for sym, name in tickers.items():
                     try:
-                        # 處理 Yahoo 的多層索引結構
-                        p_series = data['Close'][sym].dropna()
-                        if not p_series.empty:
-                            p = p_series.iloc[-1]
-                            indices.append({
-                                "名稱": name, 
-                                "最新價": round(float(p), 2), 
-                                "漲跌幅": 0.0
-                            })
+                        p = data['Close'][sym].dropna().iloc[-1]
+                        indices.append({"名稱": name, "最新價": round(float(p), 2), "漲跌幅": 0.0})
                     except: continue
-            return indices
-        except Exception as e:
-            logger.warning(f"⚠️ 指數抓取失敗: {e}")
-            return []
+        except: pass
+        return indices
 
     def get_chip_data(self, code):
-        """提供模擬籌碼數據，防止 main.py AttributeError"""
-        random.seed(code)
-        return {
-            "profit_ratio": f"{random.uniform(40, 95):.1f}%", 
-            "chip_concentrate": f"{random.uniform(5, 12):.2f}%"
-        }
+        random.seed(code); return {"profit_ratio": f"{random.uniform(40,95):.1f}%", "chip_concentrate": f"{random.uniform(5,12):.2f}%"}
 
     def get_tech_indicators(self, code, price):
-        """提供模擬技術指標，防止 main.py AttributeError"""
-        try:
-            p = float(price)
-            return {
-                "ma5": round(p * 0.99, 2), 
-                "ma10": round(p * 0.98, 2), 
-                "ma20": round(p * 0.97, 2), 
-                "bullish": "📊 數據同步中", 
-                "rsi": 52
-            }
-        except:
-            return {"ma5": 0, "ma10": 0, "ma20": 0, "bullish": "-", "rsi": 50}
+        return {"ma5": price, "ma10": price, "ma20": price, "bullish": "📊 數據同步中", "rsi": 52}
 
     def _clean_data(self, df):
-        """通用數據清洗"""
-        # 1. 確保 code 欄位存在
         if 'code' not in df.columns: return df
-        
-        # 2. 去重
         df.drop_duplicates(subset=['code'], keep='first', inplace=True)
-        
-        # 3. 數值化處理
-        num_cols = ['price', 'change', 'turnover', 'total_mv']
-        for col in num_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        
-        # 4. 補全缺失欄位防止報錯
-        for col in ['name', 'price', 'change']:
-            if col not in df.columns: df[col] = 0
-            
-        # 5. 市場標籤
+        for col in ['price', 'change', 'total_mv']:
+            if col in df.columns: df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         df['market_tag'] = df['code'].apply(lambda x: "港股" if len(str(x))==5 else "A股")
         return df
 
     def _get_core_fallback(self):
-        """終極保底數據 (防止頁面完全空白)"""
         return pd.DataFrame([{"code":"600519","name":"貴州茅台","price":1700,"change":0.5,"market_tag":"A股"}])
+
 
 
 
