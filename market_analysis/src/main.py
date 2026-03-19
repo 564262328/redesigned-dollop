@@ -131,11 +131,11 @@ def main():
             ai_results=ai_results,
             source_name=source,
             indices=indices,
-            output_path=output_html_path,
+            output_path="index.html",
             health_status=health,
             sentiment_score=sentiment_score
         )
-        logger.info(f"✅ 看板更新成功: {output_html_path}")
+        logger.info(f"✅ 看板更新成功: index.html")
     except Exception as e:
         logger.error(f"渲染失敗: {e}")
 
