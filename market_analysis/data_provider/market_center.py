@@ -43,7 +43,7 @@ class MarketDataCenter:
         try:
             # 確保 mairui_key 前面有完整的路徑
             url = f"https://mairui.club/{self.mairui_key.strip()}"
-            logger.info(f"📡 請求 API: http://api.mairui.club...")
+            logger.info(f"📡 請求 API: https://mairui.club/")
             res = requests.get(url, timeout=15)
             data = res.json()
             if isinstance(data, list) and len(data) > 0:
