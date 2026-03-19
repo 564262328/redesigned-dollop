@@ -125,17 +125,19 @@ def main():
     # 5. 生成與發布
     sentiment_score = calculate_dynamic_sentiment(ai_results)
     health = {"TX": "🟢", "Sina": "🟢", "Cache": "🔵" if "Cache" in source else "⚪"}
+
+    output_html_path = os.path.join(PROJECT_ROOT, "index.html") # Force root path
     
     try:
         reporter.render(
             ai_results=ai_results,
             source_name=source,
             indices=indices,
-            output_path="index.html",
+            output_path=output_html_path,
             health_status=health,
             sentiment_score=sentiment_score
         )
-        logger.info(f"✅ 看板更新成功: index.html")
+        logger.info(f"✅ 看板更新成功: {output_html_path}")
     except Exception as e:
         logger.error(f"渲染失敗: {e}")
 
