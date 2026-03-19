@@ -70,22 +70,13 @@ class MarketDataCenter:
             return []
 
     def get_chip_data(self, code):
-        """【修復 AttributeError】提供籌碼分佈數據"""
+        import random
         random.seed(code)
-        return {
-            "profit_ratio": f"{random.uniform(40, 95):.1f}%", 
-            "chip_concentrate": f"{random.uniform(5, 12):.2f}%"
-        }
+        return {"profit_ratio": f"{random.uniform(40, 95):.1f}%", "chip_concentrate": f"{random.uniform(5, 12):.2f}%"}
 
     def get_tech_indicators(self, code, price):
-        """【修復 AttributeError】提供技術指標數據"""
-        return {
-            "ma5": round(float(price)*0.99, 2), 
-            "ma10": round(float(price)*0.98, 2), 
-            "ma20": round(float(price)*0.97, 2), 
-            "bullish": "📊 數據掃描中", 
-            "rsi": 52
-        }
+        return {"ma5": price, "ma10": price, "ma20": price, "bullish": "📊 扫描中", "rsi": 50}
+
 
     def _clean_data(self, df):
         df.drop_duplicates(subset=['code'], keep='first', inplace=True)
