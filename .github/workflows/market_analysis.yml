@@ -46,11 +46,22 @@ jobs:
           # 設置路徑搜尋起點
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/market_analysis
         run: |
-          # 1. 智能清理損壞緩存
-          if [ -f "market_cache.json" ]; then
-            if grep -q "000001" market_cache.json || [ $(stat -c%s "market_cache.json") -lt 2048 ]; then
-              rm -f market_cache.json
-            fi
+          # 1. 強行補全包標識符
+          touch market_analysis/__init__.py || true
+          touch market_analysis/src/__init__.py || true
+          touch market_analysis/data_provider/__init__.py || true
+
+          # 2. 執行主程序
+          python market_analysis/src/main.py
+          
+          # 3. 【新增：除錯診斷】檢查檔案到底有沒有生成
+          echo "--- 檔案生成檢查 ---"
+          if [ -f "index.html" ]; then
+            echo "✅ 成功在根目錄發現 index.html"
+            ls -l index.html
+          else
+            echo "❌ 錯誤：根目錄未發現 index.html"
+            find . -name "index.html"
           fi
 
           # 2. 強行補全包標識符 (防止 ModuleNotFoundError 的終極手段)
@@ -66,14 +77,15 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          git add -A 
+          # 【修改：強制添加關鍵檔案】防止 git ignore 掉 index.html
+          git add index.html market_cache.json --force || true
           
           if git diff --staged --quiet; then
             echo "✅ 數據無變化，跳過推送。"
           else
-            git commit -m "🚀 自動復盤：市場動態與緩存同步 [$(date +'%Y-%m-%d %H:%M')]"
-            git pull --rebase --autostash origin ${GITHUB_REF_NAME}
-            git push origin ${GITHUB_REF_NAME}
+            git commit -m "🚀 自動復盤：更新 Dashboard [$(date +'%Y-%m-%d %H:%M')]"
+            git pull --rebase --autostash origin ${{ github.ref_name }}
+            git push origin ${{ github.ref_name }}
           fi
 
       - name: Setup Pages
