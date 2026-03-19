@@ -2,18 +2,16 @@ import json
 import requests
 import logging
 from src.config import Config
-from data_provider.news_center import NewsCenter
 
 logger = logging.getLogger("StockAnalyzer")
 
 class StockAnalyzer:
-    def __init__(self):
-        self.nc = NewsCenter()
-
     def _call_ai_api(self, prompt):
-        if not Config.AI_API_KEY: return None
+        if not Config.AI_API_KEY:
+            logger.error("❌ Missing AI_API_KEY")
+            return None
         
-        # 修正：aihubmix 必須包含 /v1/chat/completions
+        # Build the correct endpoint
         base_url = Config.AI_BASE_URL.rstrip('/')
         url = f"{base_url}/v1/chat/completions"
 
@@ -25,7 +23,7 @@ class StockAnalyzer:
         payload = {
             "model": "gpt-4o-mini",
             "messages": [
-                {"role": "system", "content": "你是一位量化分析師，請輸出繁體中文 JSON。"},
+                {"role": "system", "content": "你是一位量化分析師，請使用簡體中文分析數據並輸出 JSON 格式。"},
                 {"role": "user", "content": prompt}
             ],
             "response_format": {"type": "json_object"},
@@ -35,23 +33,38 @@ class StockAnalyzer:
         try:
             res = requests.post(url, headers=headers, json=payload, timeout=30)
             if res.status_code != 200:
-                logger.error(f"⚠️ AI 錯誤 {res.status_code}: {res.text}")
+                logger.error(f"⚠️ AI API Error {res.status_code}: {res.text}")
                 return None
-            return json.loads(res.json()['choices']['message']['content'])
+            
+            content = res.json()['choices'][0]['message']['content']
+            return json.loads(content)
         except Exception as e:
-            logger.error(f"⚠️ AI 異常: {e}")
+            logger.error(f"⚠️ AI Exception: {e}")
             return None
 
     def analyze_single(self, name, market_data):
-        # 獲取新聞物件
-        news_obj = self.nc.get_stock_context(name, market_data.get('code'))
-        prompt = f"分析股票 {name}({market_data.get('code')})。數據: {market_data}。新聞: {news_obj['content']}。"
+        # Build prompt using market data
+        prompt = f"""
+        请分析股票: {name} ({market_data.get('code')})。
+        实时数据: 现价 {market_data.get('price')}, 涨跌幅 {market_data.get('change')}%, 换手率 {market_data.get('turnover')}%。
+        技术指标: MA5/10/20 排列 {market_data.get('bullish')}, RSI {market_data.get('rsi')}。
+        
+        请输出以下 JSON 字段:
+        - insights: 简短的分析观点
+        - buy_point: 建议动作 (积极买入/观望/减仓)
+        - trend_prediction: 趋势预测 (看多/震荡/看空)
+        """
         
         ai_res = self._call_ai_api(prompt)
-        if not ai_res:
-            ai_res = {"insights": "AI 服務暫不可用，請參考技術指標。", "buy_point": "觀望", "trend_prediction": "盤整"}
         
-        ai_res['news_snapshot'] = news_obj
+        # Fallback if API fails
+        if not ai_res:
+            ai_res = {
+                "insights": "AI 服务暂时不可用，请参考技术指标。", 
+                "buy_point": "观望", 
+                "trend_prediction": "盘整"
+            }
+        
         return ai_res
 
 
