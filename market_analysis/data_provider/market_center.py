@@ -31,7 +31,7 @@ class MarketDataCenter:
                 df = pd.concat([df_a.rename(columns=map_cols), df_hk.rename(columns=map_cols)], ignore_index=True)
                 return self._clean_data(df), "AKShare_Main"
         except Exception as e:
-            logger.warning(f"⚠️ AKShare 請求受阻 (通常為 GitHub IP 封鎖): {e}")
+            logger.warning(f"⚠️ AKShare 請求受阻: {e}")
 
         # 2. 切換至麥蕊 API 備援 (解決 1700 保底價問題)
         if self.mairui_key:
@@ -40,49 +40,60 @@ class MarketDataCenter:
             if res_df is not None:
                 return res_df, "MaiRui_Realtime_API"
 
-        # 3. 終極保底：防止程式崩潰
+        # 3. 終極保底
         logger.error("❌ 所有動態數據源失效，啟動保底清單")
         return self._get_core_fallback(), "Security_Fallback"
 
     def _fetch_from_mairui(self):
-        """核心修正：自動偵測並強制校正 URL 格式 (防呆路徑拼接)"""
+        """核心修正：自動適配麥蕊 API 的各種欄位名稱 (dm, mc, p 等)"""
         try:
-            # 1. 確保 Key 有效
             key = self.mairui_key.lstrip('/')
-            if not key:
-                return None
-
-            # 2. 強制拼接正確的 API 路徑，確保域名與路徑之間有斜槓
-            # 域名: https://api.mairui.club
-            # 路徑: /hslt/list/
-            base_url = "https://api.mairui.club"
-            endpoint = "/hslt/list/"
-            url = f"{base_url}{endpoint}{key}"
+            url = f"https://api.mairui.club{key}"
             
-            # 3. 輸出診斷日誌
-            logger.info(f"🔗 正在請求麥蕊接口: {base_url}{endpoint}***")
-            
+            logger.info(f"🔗 正在請求麥蕊接口: https://api.mairui.club***")
             res = requests.get(url, timeout=15)
-            res.raise_for_status() # 檢查 HTTP 狀態碼
+            res.raise_for_status()
             
             data = res.json()
             if isinstance(data, list) and len(data) > 0:
                 df = pd.DataFrame(data)
-                # 麥蕊 A 股字段對齊：f(代碼), n(名稱), p(當前價), pc(漲跌幅), m(市值)
-                map_cols = {"f":"code", "n":"name", "p":"price", "pc":"change", "m":"total_mv"}
-                return self._clean_data(df.rename(columns=map_cols))
-            else:
-                logger.warning("⚠️ 麥蕊 API 返回數據格式不符或內容為空")
                 
+                # --- 自動識別並重命名欄位 ---
+                rename_map = {}
+                cols = df.columns.tolist()
+                
+                # 模糊匹配邏輯：確保程式能找到它想要的欄位
+                field_mapping = {
+                    'code': ['dm', 'f', 'code', 'symbol'],
+                    'name': ['mc', 'n', 'name', 'display_name'],
+                    'price': ['p', 'price', 'last'],
+                    'change': ['pc', 'zdf', 'change', 'chg'],
+                    'total_mv': ['m', 'sz', 'total_mv', 'market_cap']
+                }
+                
+                for target, aliases in field_mapping.items():
+                    for alias in aliases:
+                        if alias in cols:
+                            rename_map[alias] = target
+                            break
+                
+                df = df.rename(columns=rename_map)
+                
+                # 檢查關鍵欄位是否對齊成功
+                if 'code' not in df.columns:
+                    logger.error(f"❌ 麥蕊數據解析失敗，無法識別代碼欄位。現有欄位: {cols}")
+                    return None
+                    
+                return self._clean_data(df)
+            else:
+                logger.warning("⚠️ 麥蕊 API 返回內容為空或格式錯誤")
         except Exception as e:
-            logger.error(f"❌ 麥蕊接口執行失敗: {str(e)[:100]}")
-            
+            logger.error(f"❌ 麥蕊接口處理失敗: {e}")
         return None
 
     def get_market_indices(self):
         """獲取頂部四大指數 (Yahoo Finance)"""
         indices = []
-        # 代碼：上證(000001.SS), 深證(399001.SZ), 恆生(^HSI), 納指(^IXIC)
         tickers = {
             "000001.SS": "上證指數", 
             "399001.SZ": "深證成指", 
@@ -90,13 +101,11 @@ class MarketDataCenter:
             "^IXIC": "納斯達克"
         }
         try:
-            logger.info("📈 正在從 Yahoo Finance 獲取全球指數...")
             data = yf.download(list(tickers.keys()), period="1d", interval="1m", progress=False)
-            
             if not data.empty:
                 for sym, name in tickers.items():
                     try:
-                        # 獲取最後一個非空收盤價
+                        # 處理 Yahoo 的多層索引結構
                         p_series = data['Close'][sym].dropna()
                         if not p_series.empty:
                             p = p_series.iloc[-1]
@@ -121,28 +130,44 @@ class MarketDataCenter:
 
     def get_tech_indicators(self, code, price):
         """提供模擬技術指標，防止 main.py AttributeError"""
-        return {
-            "ma5": price, 
-            "ma10": price, 
-            "ma20": price, 
-            "bullish": "📊 數據同步中", 
-            "rsi": 52
-        }
+        try:
+            p = float(price)
+            return {
+                "ma5": round(p * 0.99, 2), 
+                "ma10": round(p * 0.98, 2), 
+                "ma20": round(p * 0.97, 2), 
+                "bullish": "📊 數據同步中", 
+                "rsi": 52
+            }
+        except:
+            return {"ma5": 0, "ma10": 0, "ma20": 0, "bullish": "-", "rsi": 50}
 
     def _clean_data(self, df):
-        """通用數據清洗與類型轉換"""
+        """通用數據清洗"""
+        # 1. 確保 code 欄位存在
+        if 'code' not in df.columns: return df
+        
+        # 2. 去重
         df.drop_duplicates(subset=['code'], keep='first', inplace=True)
+        
+        # 3. 數值化處理
         num_cols = ['price', 'change', 'turnover', 'total_mv']
         for col in num_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        # 自動識別市場標籤
+        
+        # 4. 補全缺失欄位防止報錯
+        for col in ['name', 'price', 'change']:
+            if col not in df.columns: df[col] = 0
+            
+        # 5. 市場標籤
         df['market_tag'] = df['code'].apply(lambda x: "港股" if len(str(x))==5 else "A股")
         return df
 
     def _get_core_fallback(self):
-        """終極保底數據 (防止頁面空白)"""
+        """終極保底數據 (防止頁面完全空白)"""
         return pd.DataFrame([{"code":"600519","name":"貴州茅台","price":1700,"change":0.5,"market_tag":"A股"}])
+
 
 
 
