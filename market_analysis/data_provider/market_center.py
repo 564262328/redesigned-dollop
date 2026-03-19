@@ -42,7 +42,7 @@ class MarketDataCenter:
         """核心修正：確保 URL 拼接包含 /hslt/list/"""
         try:
             # 確保 mairui_key 前面有完整的路徑
-            url = f"http://api.mairui.club/{self.mairui_key.strip()}"
+            url = f"https://mairui.club/{self.mairui_key.strip()}"
             logger.info(f"📡 請求 API: http://api.mairui.club...")
             res = requests.get(url, timeout=15)
             data = res.json()
