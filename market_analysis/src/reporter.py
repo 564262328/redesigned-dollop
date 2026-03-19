@@ -12,12 +12,13 @@ class ReportGenerator:
             return {"label": "貪婪", "color": "#ff7a45", "desc": "情緒升溫，注意防範追高風險"}
         else:
             return {"label": "極度貪婪", "color": "#ff4d4f", "desc": "情緒過熱，應考慮分批止盈"}
+# In your reporter.py or where ReportGenerator is defined:
+def render(self, ai_results, source_name, indices, output_path, health_status, sentiment_score=65):
+    # ... your HTML generation code ...
+    
+    with open(output_path, "w", encoding="utf-8") as f: # This uses the path we passed
+        f.write(html_template)
 
-    def render(self, ai_results, source_name, indices, output_path, health_status, sentiment_score=65):
-        # 獲取情緒配置
-        s_cfg = self.get_sentiment_config(sentiment_score)
-        
-        # ... 前面 HTML 代碼 ...
         
         # 側邊欄情緒條更新
         sentiment_html = f"""
