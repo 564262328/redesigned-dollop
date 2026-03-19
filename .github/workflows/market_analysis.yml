@@ -79,14 +79,16 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 【修改：強制添加關鍵檔案】防止 git ignore 掉 index.html
+          # 強制添加生成的 index.html 和 緩存檔案
           git add index.html market_cache.json --force || true
           
+          # 檢查是否有變動
           if git diff --staged --quiet; then
             echo "✅ 數據無變化，跳過推送。"
           else
-            git commit -m "🚀 自動復盤：更新 Dashboard [$(date +'%Y-%m-%d %H:%M')]"
-            git pull --rebase --autostash origin ${{ github.ref_name }}
+            git commit -m "🚀 自動同步：V15.8 PRO [數據與伺服器]"
+            # 使用更安全的推送方式
+            git pull --rebase origin ${{ github.ref_name }}
             git push origin ${{ github.ref_name }}
           fi
 
