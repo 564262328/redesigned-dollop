@@ -2,9 +2,9 @@ name: Quant Terminal Deployment
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "market_analysis" ]
   schedule:
-    - cron: '*/20 * * * *'
+    - cron: '0 * * * *' # Run hourly to save API credits
   workflow_dispatch:
 
 permissions:
@@ -15,80 +15,51 @@ permissions:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    concurrency:
-      group: quant-deployment
-      cancel-in-progress: false
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          # 這裡必須加入 yfinance
-          pip install --prefer-binary akshare pandas requests numpy yfinance
+          pip install akshare pandas requests numpy yfinance
 
-
-      - name: Run Market Analysis
+      - name: Run Analysis
         env:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
-          BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
-          TAVILLY_API_KEY: ${{ secrets.TAVILLY_API_KEY }}
-          SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
-          # 設置路徑搜尋起點
+          MAIRUI_KEY: ${{ secrets.MAIRUI_KEY }}
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/market_analysis
         run: |
-          # 1. 強行補全包標識符
-          touch market_analysis/__init__.py || true
-          touch market_analysis/src/__init__.py || true
-          touch market_analysis/data_provider/__init__.py || true
-
-          # 2. 執行主程序
+          # Ensure package structure
+          touch market_analysis/__init__.py
+          touch market_analysis/src/__init__.py
+          touch market_analysis/data_provider/__init__.py
+          
+          # Run script
           python market_analysis/src/main.py
           
-          # 3. 【新增：除錯診斷】檢查檔案到底有沒有生成
-          echo "--- 檔案生成檢查 ---"
-          if [ -f "index.html" ]; then
-            echo "✅ 成功在根目錄發現 index.html"
-            ls -l index.html
-          else
-            echo "❌ 錯誤：根目錄未發現 index.html"
-            find . -name "index.html"
-          fi
+          # Verify file creation
+          ls -l index.html || exit 1
 
-          # 2. 強行補全包標識符 (防止 ModuleNotFoundError 的終極手段)
-          touch market_analysis/__init__.py || true
-          touch market_analysis/src/__init__.py || true
-          touch market_analysis/data_provider/__init__.py || true
-
-          # 3. 執行主程序
-          python market_analysis/src/main.py
-
-      - name: Commit and Push changes
+      - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 強制添加生成的 index.html 和 緩存檔案
+          # Force add files
           git add index.html market_cache.json --force || true
           
-          # 檢查是否有變動
           if git diff --staged --quiet; then
-            echo "✅ 數據無變化，跳過推送。"
+            echo "No changes found."
           else
-            git commit -m "🚀 自動同步：V15.8 PRO [數據與伺服器]"
-            # 使用更安全的推送方式
-            git pull --rebase origin ${{ github.ref_name }}
+            git commit -m "🚀 Terminal Update [$(date +'%Y-%m-%d %H:%M')]"
             git push origin ${{ github.ref_name }}
           fi
 
@@ -101,8 +72,8 @@ jobs:
           path: '.' 
 
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
+
 
 
 
