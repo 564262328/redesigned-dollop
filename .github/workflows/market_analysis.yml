@@ -1,21 +1,22 @@
-name: Quant Terminal Deployment
+name: Quant Terminal V15.8 Deployment
 
 on:
   push:
     branches: [ "main", "master", "market_analysis" ]
   schedule:
-    - cron: '0 * * * *' # 建议改为每小时执行一次，节省 AI 额度并防止部署冲突
-  workflow_dispatch:      # 允许手动点击按钮执行
+    - cron: '0 * * * *' # 每小時執行一次，節省 AI 額度並防止部署衝突
+  workflow_dispatch:      # 允許在 GitHub 介面手動點擊執行
 
-# 核心修正：处理并发冲突，确保同一时间只有一个部署在跑
+# 權限設置：解決 Failed to get ID Token 與 Pages 部署失敗的核心
+permissions:
+  contents: write   # 允許 Commit 產生的 index.html 與緩存回倉庫
+  pages: write      # 允許部署到 GitHub Pages
+  id-token: write   # 【關鍵】允許 OIDC 身份驗證，修復你遇到的最新錯誤
+
+# 併發控制：確保同一時間只有一個任務在部署，避免 400 錯誤
 concurrency:
   group: "pages"
   cancel-in-progress: true
-
-permissions:
-  contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build_and_deploy:
@@ -24,7 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # 獲取完整歷史以利於 Git Push
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -39,29 +40,29 @@ jobs:
 
       - name: Run Market Analysis
         env:
-          # 从 GitHub Secrets 读取敏感信息
+          # 從 GitHub Secrets 映射環境變數
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           MAIRUI_KEY: ${{ secrets.MAIRUI_KEY }}
           BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
-          # 关键：设置 PYTHONPATH 解决导入错误
+          # 解決模組導入路徑問題
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/market_analysis
         run: |
-          # 1. 修复 Python 包标识符
+          # 1. 自動修復 Python 包標識符 (防止 ModuleNotFoundError)
           touch market_analysis/__init__.py || true
           touch market_analysis/src/__init__.py || true
           touch market_analysis/data_provider/__init__.py || true
 
-          # 2. 运行主程序
+          # 2. 執行主程序
           python market_analysis/src/main.py
           
-          # 3. 诊断检查：确认 index.html 是否生成在根目录
-          echo "--- 检查生成的 index.html ---"
+          # 3. 診斷診斷：確認 index.html 是否生成
           if [ -f "index.html" ]; then
+            echo "✅ index.html 生成成功"
             ls -l index.html
           else
-            echo "❌ 错误：未发现 index.html，搜索全仓库..."
-            find . -name "index.html"
+            echo "❌ 錯誤：找不到 index.html"
+            exit 1
           fi
 
       - name: Commit and Push changes
@@ -69,14 +70,14 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 强制添加 index.html 和缓存文件，即使它们在 .gitignore 里
+          # 強制添加生成的 index.html 和緩存
           git add index.html market_cache.json --force || true
           
           if git diff --staged --quiet; then
-            echo "✅ 记录无变化，跳过推送。"
+            echo "✅ 數據無變化，跳過推送。"
           else
-            git commit -m "🚀 自动化复盘：更新看板 [$(date +'%Y-%m-%d %H:%M')]"
-            # 解决分支推送冲突
+            git commit -m "🚀 自動復盤：更新看板數據 [$(date +'%Y-%m-%d %H:%M')]"
+            # 使用 rebase 避免推送衝突
             git pull --rebase origin ${{ github.ref_name }}
             git push origin ${{ github.ref_name }}
           fi
@@ -87,7 +88,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # 必须设置为 '.' 代表根目录，以便包含 index.html
+          # 必須是 '.' 代表根目錄，這樣 GitHub Pages 才能找到 index.html
           path: '.' 
 
       - name: Deploy to GitHub Pages
