@@ -104,6 +104,9 @@ def main():
     ai_results = []
     logger.info(f"🤖 正在分析 {len(target_df)} 檔標的 (源: {source})...")
     
+    # ... 前面 1 到 4 步驟代碼保持不變 ...
+
+    # 4. 批量 AI 分析循環
     for idx, (_, row) in enumerate(target_df.iterrows()):
         stock_code = str(row['code'])
         tech = dc.get_tech_indicators(stock_code, row['price']) if hasattr(dc, 'get_tech_indicators') else {}
@@ -120,7 +123,16 @@ def main():
 
         res.update(combined_info)
         ai_results.append(res)
-        time.sleep(getattr(Config, 'ANALYSIS_DELAY', 1.5))
+        
+        # ==========================================
+        # 🎯 【新增在此處】擬人化延遲防封號
+        # ==========================================
+        if idx < len(target_df) - 1: # 如果不是最後一檔，就等待
+            # 這裡我們將原本固定的 1.5 秒換成隨機的 3.5 到 6.5 秒
+            sleep_time = random.uniform(3.5, 6.5)
+            logger.info(f"⏳ 模擬人類閱讀中... 等待 {sleep_time:.1f} 秒後分析下一檔")
+            time.sleep(sleep_time)
+        # ==========================================
 
     # 5. 生成與發布
     sentiment_score = calculate_dynamic_sentiment(ai_results)
