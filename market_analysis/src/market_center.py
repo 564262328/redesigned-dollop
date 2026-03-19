@@ -1,6 +1,6 @@
 import time, os, json, random, pandas as pd, akshare as ak
 from datetime import datetime, timedelta
-from src.config import Config
+from config import Config
 
 class MarketDataCenter:
     def fetch_all(self):
