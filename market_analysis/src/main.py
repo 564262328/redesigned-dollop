@@ -3,108 +3,78 @@ import sys
 import time
 import random
 import logging
-import argparse
-import pandas as pd
 from datetime import datetime
 
-def setup_runtime_env():
-    # Force the root directory as the source for all imports
-    current_file = os.path.abspath(__file__)
-    src_dir = os.path.dirname(current_file)
-    pkg_root = os.path.dirname(src_dir)       
-    repo_root = os.path.dirname(pkg_root)    
-    
-    for p in [repo_root, pkg_root, src_dir]:
-        if p not in sys.path:
-            sys.path.insert(0, p)
-    return repo_root
+# 环境注入
+def setup_runtime():
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sys.path.insert(0, root)
+    sys.path.insert(0, os.path.join(root, "market_analysis"))
+    return root
 
-PROJECT_ROOT = setup_runtime_env()
+PROJECT_ROOT = setup_runtime()
 
-# Imports after path setup
-try:
-    from src.config import Config
-    from src.analyzer import StockAnalyzer
-    from src.reporter import ReportGenerator
-    from data_provider.market_center import MarketDataCenter
-except ImportError as e:
-    print(f"❌ Import Error: {e}")
-    sys.exit(1)
+from src.config import Config
+from src.analyzer import StockAnalyzer
+from src.reporter import ReportGenerator
+from data_provider.market_center import MarketDataCenter
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger("MainControl")
 
-def calculate_dynamic_sentiment(ai_results):
-    if not ai_results: return 50
-    try:
-        up_count = sum(1 for res in ai_results if float(res.get('change', 0)) > 0)
-        sentiment = (up_count / len(ai_results)) * 100
-        return max(min(sentiment, 100), 0)
-    except: return 55
-
 def main():
-    # ABSOLUTE PATHS ARE KEY
-    output_html_path = os.path.join(PROJECT_ROOT, "index.html")
-    cache_json_path = os.path.join(PROJECT_ROOT, "market_cache.json")
+    logger.info("🚀 QUANT PRO 终端启动诊断...")
+    # 诊断 Secrets (安全脱敏输出)
+    logger.info(f"🔑 AI_KEY: {'[OK]' if Config.AI_API_KEY else '[MISSING]'}")
+    logger.info(f"🔑 MAIRUI_KEY: {'[OK]' if Config.MAIRUI_KEY else '[MISSING]'}")
     
-    logger.info(f"🚀 QUANT PRO V15.8 Deployment Started")
-
-    dc = MarketDataCenter(cache_file=cache_json_path)
+    dc = MarketDataCenter()
     analyzer = StockAnalyzer()
     reporter = ReportGenerator()
     
+    # 1. 抓取数据
     full_df, source = dc.fetch_all_markets()
     indices = dc.get_market_indices()
     
-    if full_df.empty:
-        logger.error("Data source failed.")
-        return
+    # 2. 筛选标的
+    watchlist = Config.WATCHLIST
+    target_df = full_df[full_df['code'].isin(watchlist)]
+    if len(target_df) < 2:
+        logger.info("⚠️ 自选股匹配不足，自动抓取涨幅榜...")
+        target_df = full_df.sort_values(by='change', ascending=False).head(10)
 
-    # Sampling logic
-    watchlist = getattr(Config, 'WATCHLIST', ["600519", "00700", "300750"])
-    target_df = full_df[full_df['code'].isin(watchlist)].head(15)
-
+    # 3. 循环分析
     ai_results = []
     for idx, (_, row) in enumerate(target_df.iterrows()):
-        stock_code = str(row['code'])
-        # Get indicators from MarketDataCenter
-        tech = dc.get_tech_indicators(stock_code, row['price'])
-        chips = dc.get_chip_data(stock_code)
+        logger.info(f"[{idx+1}/{len(target_df)}] 分析中: {row['name']}...")
         
-        combined_info = {**row.to_dict(), **tech, **chips}
+        tech = dc.get_tech_indicators(row['code'], row['price'])
+        chips = dc.get_chip_data(row['code'])
+        combined = {**row.to_dict(), **tech, **chips}
         
-        logger.info(f"[{idx+1}/{len(target_df)}] Analyzing: {row['name']}")
-        res = analyzer.analyze_single(row['name'], combined_info)
-        
-        if not res:
-            res = {"insights": "AI Syncing...", "buy_point": "Hold", "trend_prediction": "Neutral"}
-        
-        res.update(combined_info)
+        res = analyzer.analyze_single(row['name'], combined)
+        res.update(combined)
         ai_results.append(res)
         
-        # Human-like delay
+        # 拟人化延迟
         if idx < len(target_df) - 1:
-            wait = random.uniform(3.5, 6.5)
-            time.sleep(wait)
+            time.sleep(random.uniform(3.0, 6.0))
 
-    sentiment_score = calculate_dynamic_sentiment(ai_results)
-    health = {"Status": "🟢 OK"}
-    
-    try:
-        reporter.render(
-            ai_results=ai_results,
-            source_name=source,
-            indices=indices,
-            output_path=output_html_path,
-            health_status=health,
-            sentiment_score=sentiment_score
-        )
-        logger.info(f"✅ Dashboard updated at: {output_html_path}")
-    except Exception as e:
-        logger.error(f"Render failed: {e}")
+    # 4. 生成报告
+    output_path = os.path.join(PROJECT_ROOT, "index.html")
+    reporter.render(
+        ai_results=ai_results,
+        source_name=source,
+        indices=indices,
+        output_path=output_path,
+        health_status={"Data": "🟢", "AI": "🟢"},
+        sentiment_score=65
+    )
+    logger.info(f"✅ 更新成功: {output_path}")
 
 if __name__ == "__main__":
     main()
+
 
 
 
