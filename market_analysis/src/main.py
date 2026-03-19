@@ -138,20 +138,22 @@ def main():
     sentiment_score = calculate_dynamic_sentiment(ai_results)
     health = {"TX": "🟢", "Sina": "🟢", "Cache": "🔵" if "Cache" in source else "⚪"}
 
-    output_html_path = os.path.join(PROJECT_ROOT, "index.html") # Force root path
-    
-    try:
-        reporter.render(
-            ai_results=ai_results,
-            source_name=source,
-            indices=indices,
-            output_path=output_html_path,
-            health_status=health,
-            sentiment_score=sentiment_score
-        )
-        logger.info(f"✅ 看板更新成功: {output_html_path}")
-    except Exception as e:
-        logger.error(f"渲染失敗: {e}")
+# 在 main.py 的 main() 函式最後
+# 確保 PROJECT_ROOT 是你的倉庫根目錄 (redesigned-dollop)
+output_html_path = os.path.join(PROJECT_ROOT, "index.html")
+
+try:
+    reporter.render(
+        ai_results=ai_results,
+        source_name=source,
+        indices=indices,
+        output_path=output_html_path,  # 使用絕對路徑
+        health_status=health,
+        sentiment_score=sentiment_score
+    )
+    logger.info(f"✅ 看板更新成功: {output_html_path}")
+except Exception as e:
+    logger.error(f"渲染失敗: {e}")
 
 if __name__ == "__main__":
     main()
