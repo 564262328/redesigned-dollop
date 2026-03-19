@@ -7,7 +7,7 @@ import pandas as pd
 import akshare as ak
 import numpy as np
 from datetime import datetime, timedelta
-from src.config import Config
+from config import Config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("MarketCenter")
